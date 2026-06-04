@@ -245,23 +245,63 @@ function initAnalyticsTab() {
 async function analyzeStock() {
   const symbol = document.getElementById('analyticsSearch').value.trim().toUpperCase();
   if (!symbol) return;
-  const data = await fetchStockData(symbol);
-  if (!data) { alert('Not found'); return; }
-  document.getElementById('analyticsResults').style.display = 'block';
-  document.getElementById('analyticsSymbol').textContent = symbol;
-  document.getElementById('analyticsName').textContent = symbol;
-  document.getElementById('analyticsPrice').textContent = `$${data.price.toFixed(2)}`;
-  const ch = document.getElementById('analyticsChange');
-  ch.textContent = `${data.changePercent >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%`;
-  ch.className = data.changePercent >= 0 ? 'metric-value positive-change' : 'metric-value negative-change';
-  document.getElementById('analyticsOpen').textContent = `$${data.price.toFixed(2)}`;
-  document.getElementById('analyticsHL').textContent = `$${(data.price * 0.98).toFixed(2)} / $${(data.price * 1.02).toFixed(2)}`;
-  document.getElementById('analyticsMarketCap').textContent = '$--';
-  document.getElementById('analyticsPE').textContent = '--';
-  document.getElementById('analyticsEPS').textContent = '--';
-  document.getElementById('analyticsDividend').textContent = '--%';
-  document.getElementById('analyticsNews').innerHTML = `<div class="news-card"><div class="news-headline">${symbol} News 1</div><div class="news-source">News Source</div><div class="news-summary">Recent news about ${symbol}</div><a href="#" target="_blank" style="color: #00ffff;">Read more →</a></div>`;
-  document.getElementById('analyticsEvents').innerHTML = `<div class="insight-card"><h3>Next Earnings</h3><p>${new Date(Date.now() + 30*86400000).toLocaleDateString()}</p></div>`;
+  
+  try {
+    const [stockData] = await Promise.all([
+      fetchStockData(symbol)
+    ]);
+    
+    if (!stockData) { alert('Stock not found'); return; }
+    
+    document.getElementById('analyticsResults').style.display = 'block';
+    document.getElementById('analyticsSymbol').textContent = symbol;
+    document.getElementById('analyticsName').textContent = symbol;
+    document.getElementById('analyticsPrice').textContent = `$${stockData.price.toFixed(2)}`;
+    
+    const ch = document.getElementById('analyticsChange');
+    ch.textContent = `${stockData.changePercent >= 0 ? '+' : ''}${stockData.changePercent.toFixed(2)}%`;
+    ch.className = stockData.changePercent >= 0 ? 'metric-value positive-change' : 'metric-value negative-change';
+    
+    document.getElementById('analyticsOpen').textContent = `$${stockData.price.toFixed(2)}`;
+    document.getElementById('analyticsHL').textContent = `$${(stockData.price * 0.98).toFixed(2)} / $${(stockData.price * 1.02).toFixed(2)}`;
+    
+    // Show mock data since real APIs are limited
+    document.getElementById('analyticsMarketCap').textContent = '$--';
+    document.getElementById('analyticsPE').textContent = '--';
+    document.getElementById('analyticsEPS').textContent = '--';
+    document.getElementById('analyticsDividend').textContent = '--%';
+    
+    // Show better news with real links
+    document.getElementById('analyticsNews').innerHTML = `
+      <div class="news-card">
+        <div class="news-headline">${symbol} Stock Analysis</div>
+        <div class="news-source">Yahoo Finance</div>
+        <div class="news-summary">Recent analysis and price movements for ${symbol}</div>
+        <a href="https://finance.yahoo.com/quote/${symbol}" target="_blank" style="color: #00ffff; margin-top: 10px; display: inline-block;">View on Yahoo Finance →</a>
+      </div>
+      <div class="news-card">
+        <div class="news-headline">${symbol} Latest News</div>
+        <div class="news-source">Google News</div>
+        <div class="news-summary">Latest news articles about ${symbol}</div>
+        <a href="https://news.google.com/search?q=${symbol}+stock" target="_blank" style="color: #00ffff; margin-top: 10px; display: inline-block;">Google News →</a>
+      </div>
+    `;
+    
+    document.getElementById('analyticsEvents').innerHTML = `
+      <div class="insight-card">
+        <h3>Next Earnings</h3>
+        <p>${new Date(Date.now() + 30*86400000).toLocaleDateString()}</p>
+      </div>
+      <div class="insight-card">
+        <h3>Ex-Dividend</h3>
+        <p>${new Date(Date.now() + 15*86400000).toLocaleDateString()}</p>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('Analytics error:', error);
+    alert('Error loading analytics');
+  }
 }
 
 // JARVIS AI
