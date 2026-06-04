@@ -14,11 +14,11 @@ export async function onRequestGet({ request, env }) {
     
     // Map your symbols to CommodityPriceAPI commodity names
     const commodityMap: { [key: string]: string } = {
-      "CLN26": "WTIOIL",      // Crude Oil (WTI)
-      "BRN26": "BRENT",       // Brent Oil
-      "NGQ26": "NATGAS",      // Natural Gas
-      "GCQ26": "GOLD",        // Gold
-      "ESM26": "SILVER"       // Silver (fallback for S&P 500)
+      "CLN26": "WTI",        // Crude Oil (WTI)
+      "BRN26": "BRENT",      // Brent Oil
+      "NGQ26": "NATURALGAS", // Natural Gas
+      "GCQ26": "GOLD",       // Gold
+      "ESM26": "SILVER"      // Silver
     };
     
     const commodity = commodityMap[symbol];
@@ -32,13 +32,19 @@ export async function onRequestGet({ request, env }) {
     
     console.log(`Commodity name: ${commodity}`);
     
-    // CommodityPriceAPI endpoint
+    // CommodityPriceAPI endpoint (API key in HEADER, not URL)
     const apiKey = "755371df-32e9-4940-96d3-381cd9e94d36";
-    const apiUrl = `https://api.commoditypriceapi.com/v2/rates/latest?symbols=${commodity}&x-api-key=${apiKey}`;
+    const apiUrl = `https://api.commoditypriceapi.com/v2/rates/latest?symbols=${commodity}`;
     
     console.log('API URL:', apiUrl);
     
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, {
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json"
+      }
+    });
+    
     console.log('Response status:', response.status);
     
     if (!response.ok) {
@@ -51,7 +57,6 @@ export async function onRequestGet({ request, env }) {
     console.log('CommodityPriceAPI response:', data);
     
     // Get the price from the response
-    // API returns: { rates: { GOLD: { price: 2034.50, ... } } }
     const price = data.rates?.[commodity]?.price || data.rates?.[commodity]?.last_price || 0;
     
     console.log('Extracted price:', price);
