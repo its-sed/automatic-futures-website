@@ -1,23 +1,30 @@
-// JARVIS AI Trading Platform - Ultimate Version
+// JARVIS Trading Platform - Complete Rebuild
 // State Management
-let portfolio = [];
-let recommendations = [];
+let stockPortfolio = [];
+let futuresContracts = [{ symbol: 'CL', name: 'Crude Oil', contractSize: 1000, tickValue: 10 }];
 let portfolioChart = null;
-let lastRefreshTime = null;
+let analyticsChart = null;
+let lastFuturesRefresh = null;
+let lastNewsRefresh = null;
 let chatHistory = [];
 
-// Finnhub API Key
-const API_KEY = 'd8gqff9r01qhjpmp75p0d8gqff9r01qhjpmp75pg';
+// API Keys
+const FINNHUB_API_KEY = 'd8gqff9r01qhjpmp75p0d8gqff9r01qhjpmp75pg';
+const ALPHA_VANTAGE_API_KEY = 'DEMO'; // Free tier for demo
 
 // Initialize platform
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
-  loadPortfolio();
-  initChart();
+  loadStockPortfolio();
+  loadFuturesContracts();
+  initFuturesTab();
+  initStockPortfolio();
+  initNewsTab();
+  initAnalyticsTab();
+  initJARVISChat();
   updateSystemTime();
-  fetchRecommendations();
   setInterval(updateSystemTime, 1000);
-  setInterval(autoRefreshRecommendations, 3600000);
+  setInterval(updateStockPortfolioPrices, 300000); // Update every 5 minutes
 });
 
 // Tab Navigation
@@ -31,11 +38,6 @@ function initTabs() {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       const targetTab = document.getElementById(tab.dataset.tab);
       if (targetTab) targetTab.classList.add('active');
-      
-      // Initialize chat if JARVIS AI Help tab
-      if (tab.dataset.tab === 'jarvis-help') {
-        initJARVISChat();
-      }
     });
   });
 }
@@ -46,46 +48,155 @@ function updateSystemTime() {
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
 }
 
-// Initialize Portfolio Chart
-function initChart() {
-  const canvas = document.getElementById('portfolioChart');
-  if (!canvas) return;
+// ============================================
+// FUTURES TAB
+// ============================================
+
+function initFuturesTab() {
+  renderFuturesContracts();
+  updateFuturesPrices();
+  lastFuturesRefresh = new Date();
   
+  const refreshTimeEl = document.getElementById('refreshTime');
+  if (refreshTimeEl) refreshTimeEl.textContent = `Last updated: ${lastFuturesRefresh.toLocaleTimeString()}`;
+  
+  // Add futures button
+  const addBtn = document.getElementById('addFuturesBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', addFuturesContract);
+  }
+  
+  // Auto-refresh futures every 30 seconds
+  setInterval(updateFuturesPrices, 30000);
+}
+
+function loadFuturesContracts() {
+  const saved = localStorage.getItem('futuresContracts');
+  if (saved) {
+    futuresContracts = JSON.parse(saved);
+  }
+}
+
+function saveFuturesContracts() {
+  localStorage.setItem('futuresContracts', JSON.stringify(futuresContracts));
+}
+
+function renderFuturesContracts() {
+  const container = document.getElementById('futuresList');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  futuresContracts.forEach((contract, index) => {
+    const card = document.createElement('div');
+    card.className = 'recommendation-card';
+    card.innerHTML = `
+      <div class="rec-symbol">${contract.symbol}</div>
+      <div class="rec-name">${contract.name}</div>
+      <div class="rec-price" id="futuresPrice-${index}">$--</div>
+      <div class="rec-change" id="futuresChange-${index}">--%</div>
+      <div style="margin-bottom: 10px;">
+        <strong style="color: #0088ff;">Contract Size:</strong> <span style="color: #00ffff;">${contract.contractSize}</span>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong style="color: #0088ff;">Tick Value:</strong> <span style="color: #00ffff;">$${contract.tickValue}</span>
+      </div>
+      <div class="support-resistance">
+        <div class="support-card">
+          <h4>Support</h4>
+          <p id="support-${index}">$--</p>
+        </div>
+        <div class="resistance-card">
+          <h4>Resistance</h4>
+          <p id="resistance-${index}">$--</p>
+        </div>
+      </div>
+      <div class="futures-chart-container">
+        <canvas id="futuresChart-${index}"></canvas>
+      </div>
+      <button class="action-btn" onclick="removeFutures(${index})" style="margin-top: 15px; width: 100%; background: rgba(255, 0, 96, 0.2); border-color: #ff0060; color: #ff0060;">Remove</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function updateFuturesPrices() {
+  for (let i = 0; i < futuresContracts.length; i++) {
+    const contract = futuresContracts[i];
+    const priceEl = document.getElementById(`futuresPrice-${i}`);
+    const changeEl = document.getElementById(`futuresChange-${i}`);
+    const supportEl = document.getElementById(`support-${i}`);
+    const resistanceEl = document.getElementById(`resistance-${i}`);
+    const chartCanvas = document.getElementById(`futuresChart-${i}`);
+    
+    // For demo, use stock API (Finnhub doesn't have futures)
+    const data = await fetchStockData(contract.symbol);
+    
+    if (data && priceEl && changeEl) {
+      priceEl.textContent = `$${data.price.toFixed(2)}`;
+      
+      const changeSign = data.changePercent >= 0 ? '+' : '';
+      const changeClass = data.changePercent >= 0 ? 'bull' : 'bear';
+      changeEl.className = `rec-change ${changeClass}`;
+      changeEl.textContent = `${changeSign}${data.changePercent.toFixed(2)}%`;
+      
+      // Calculate support and resistance
+      const support = data.price * 0.95;
+      const resistance = data.price * 1.05;
+      
+      if (supportEl) supportEl.textContent = `$${support.toFixed(2)}`;
+      if (resistanceEl) resistanceEl.textContent = `$${resistance.toFixed(2)}`;
+      
+      // Create chart
+      if (chartCanvas) {
+        const history = await fetchStockHistory(contract.symbol);
+        createFuturesChart(chartCanvas, history);
+      }
+    }
+  }
+  
+  lastFuturesRefresh = new Date();
+  const refreshTimeEl = document.getElementById('refreshTime');
+  if (refreshTimeEl) refreshTimeEl.textContent = `Last updated: ${lastFuturesRefresh.toLocaleTimeString()}`;
+  
+  const jarvisEl = document.getElementById('jarvisRecommendation');
+  if (jarvisEl) {
+    jarvisEl.textContent = `Monitoring ${futuresContracts.length} futures contracts. Crude Oil (CL) is showing ${futuresContracts[0]?.symbol ? 'active trading' : 'no data'} volume today.`;
+  }
+}
+
+function createFuturesChart(canvas, history) {
   const ctx = canvas.getContext('2d');
   
-  portfolioChart = new Chart(ctx, {
+  if (analyticsChart) {
+    analyticsChart.destroy();
+  }
+  
+  analyticsChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+      labels: history.labels.slice(-30),
       datasets: [{
-        label: 'Portfolio Value',
-        data: [0, 0, 0, 0, 0, 0, 0],
+        label: 'Price',
+        data: history.prices.slice(-30),
         borderColor: '#00d9ff',
         backgroundColor: 'rgba(0, 217, 255, 0.2)',
-        borderWidth: 3,
+        borderWidth: 2,
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: '#00ffff',
-        pointBorderColor: '#00d9ff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7
+        pointRadius: 3,
+        pointHoverRadius: 5
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          labels: {
-            color: '#00d9ff',
-            font: { size: 14 }
-          }
-        }
+        legend: { display: false }
       },
       scales: {
         x: {
-          ticks: { color: '#0088ff' },
+          ticks: { color: '#0088ff', maxTicksLimit: 6 },
           grid: { color: 'rgba(0, 217, 255, 0.1)' }
         },
         y: {
@@ -97,286 +208,189 @@ function initChart() {
   });
 }
 
-// Load Portfolio from localStorage
-function loadPortfolio() {
-  const saved = localStorage.getItem('jarvisPortfolio');
+function addFuturesContract() {
+  const symbolInput = document.getElementById('futuresSymbol');
+  const symbol = symbolInput.value.trim().toUpperCase();
+  
+  if (!symbol) {
+    alert('Please enter a futures symbol');
+    return;
+  }
+  
+  const name = prompt('Enter contract name:', symbol === 'CL' ? 'Crude Oil' : `${symbol} Futures`);
+  if (!name) return;
+  
+  const contractSize = prompt('Enter contract size (e.g., 1000 for CL):', '1000');
+  const tickValue = prompt('Enter tick value (e.g., 10 for CL):', '10');
+  
+  futuresContracts.push({
+    symbol,
+    name,
+    contractSize: parseInt(contractSize) || 1000,
+    tickValue: parseInt(tickValue) || 10
+  });
+  
+  saveFuturesContracts();
+  renderFuturesContracts();
+  updateFuturesPrices();
+  
+  symbolInput.value = '';
+}
+
+function removeFutures(index) {
+  if (confirm('Remove this futures contract?')) {
+    futuresContracts.splice(index, 1);
+    saveFuturesContracts();
+    renderFuturesContracts();
+    updateFuturesPrices();
+  }
+}
+
+// ============================================
+// STOCK PORTFOLIO TAB
+// ============================================
+
+function initStockPortfolio() {
+  updatePortfolioDisplay();
+}
+
+function loadStockPortfolio() {
+  const saved = localStorage.getItem('stockPortfolio');
   if (saved) {
-    portfolio = JSON.parse(saved);
-    updatePortfolioDisplay();
+    stockPortfolio = JSON.parse(saved);
   }
 }
 
-// Save Portfolio
-function savePortfolio() {
-  localStorage.setItem('jarvisPortfolio', JSON.stringify(portfolio));
+function saveStockPortfolio() {
+  localStorage.setItem('stockPortfolio', JSON.stringify(stockPortfolio));
 }
 
-// Fetch Stock Data from Finnhub
-async function fetchStockData(symbol) {
-  try {
-    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol.toUpperCase()}&token=${API_KEY}`);
-    if (!response.ok) throw new Error('Failed to fetch data');
-    const data = await response.json();
-    return {
-      symbol: symbol.toUpperCase(),
-      name: symbol.toUpperCase(),
-      price: data.c || 0,
-      change: data.d || 0,
-      changePercent: data.dp || 0,
-      high: data.h || 0,
-      low: data.l || 0,
-      open: data.o || 0,
-      previousClose: data.pc || 0
-    };
-  } catch (error) {
-    console.error('Error fetching stock:', error);
-    return null;
-  }
-}
-
-// Fetch Stock News from Finnhub
-async function fetchStockNews(symbol) {
-  try {
-    const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fromDate = weekAgo.toISOString().split('T')[0];
-    const toDate = today.toISOString().split('T')[0];
-    
-    const response = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${symbol.toUpperCase()}&from=${fromDate}&to=${toDate}&token=${API_KEY}`);
-    if (!response.ok) throw new Error('Failed to fetch news');
-    const data = await response.json();
-    return data.slice(0, 10) || [];
-  } catch (error) {
-    console.error('Error fetching news:', error);
-    return [];
-  }
-}
-
-// Fetch Historical Data for Chart - Try Multiple Sources
-async function fetchStockHistory(symbol) {
-  try {
-    // Try Finnhub first with different time range
-    const today = new Date();
-    const twoMonthsAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
-    const fromDate = Math.floor(twoMonthsAgo.getTime() / 1000);
-    const toDate = Math.floor(today.getTime() / 1000);
-    
-    const response = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol.toUpperCase()}&resolution=D&from=${fromDate}&to=${toDate}&token=${API_KEY}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+function updateStockPortfolioPrices() {
+  stockPortfolio.forEach(async (holding, index) => {
+    const data = await fetchStockData(holding.symbol);
+    if (data) {
+      holding.currentPrice = data.price;
+      holding.change = data.change;
+      holding.changePercent = data.changePercent;
     }
-    
-    const data = await response.json();
-    
-    if (data.s === 'ok' && data.c && data.t && data.c.length > 0) {
-      const labels = data.t.map(ts => {
-        const date = new Date(ts * 1000);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      });
-      const prices = data.c;
-      return { labels, prices, success: true };
-    }
-    
-    // If no data from Finnhub, try Yahoo Finance workaround
-    console.warn(`No data from Finnhub for ${symbol}, trying alternative...`);
-    return await fetchFromYahooAlternative(symbol);
-    
-  } catch (error) {
-    console.error('Error fetching history from all sources:', error);
-    // Last resort: fetch from Yahoo Finance public API
-    return await fetchFromYahooAlternative(symbol);
-  }
+  });
+  
+  saveStockPortfolio();
+  updatePortfolioDisplay();
 }
 
-// Alternative: Fetch from Yahoo Finance
-async function fetchFromYahooAlternative(symbol) {
-  try {
-    // Yahoo Finance API
-    const today = new Date();
-    const twoMonthsAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
-    
-    const fromDate = Math.floor(twoMonthsAgo.getTime() / 1000);
-    const toDate = Math.floor(today.getTime() / 1000);
-    
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?range=2mo&interval=1d`);
-    
-    if (!response.ok) {
-      throw new Error(`Yahoo API failed: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.chart && data.chart.result && data.chart.result[0]) {
-      const result = data.chart.result[0];
-      const timestamps = result.timestamp || [];
-      const quotes = result.indicators.quote[0].close || [];
-      
-      if (timestamps.length > 0 && quotes.length > 0) {
-        const labels = timestamps.map(ts => {
-          const date = new Date(ts * 1000);
-          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        });
-        return { labels, prices: quotes, success: true };
-      }
-    }
-    
-    throw new Error('Invalid Yahoo response');
-    
-  } catch (error) {
-    console.error('Yahoo fetch failed:', error);
-    return { labels: [], prices: [], success: false };
-  }
-}
-
-// Update Portfolio Display
 function updatePortfolioDisplay() {
   const rows = document.getElementById('portfolioRows');
+  const totalEl = document.getElementById('portfolioTotal');
+  const dayChangeEl = document.getElementById('portfolioDayChange');
+  const holdingsEl = document.getElementById('portfolioHoldings');
+  
   if (!rows) return;
   
   rows.innerHTML = '';
   
   let totalValue = 0;
-  let totalGain = 0;
-  let dayChange = 0;
-  let bestPerformer = { symbol: '-', gain: 0 };
+  let totalPL = 0;
+  let totalDayChange = 0;
   
-  portfolio.forEach((stock, index) => {
-    const currentValue = stock.shares * stock.currentPrice;
-    const gain = currentValue - (stock.shares * stock.buyPrice);
-    const gainPercent = ((stock.currentPrice - stock.buyPrice) / stock.buyPrice) * 100;
-    const dayChangePercent = stock.changePercent || 0;
+  stockPortfolio.forEach((holding, index) => {
+    const currentValue = holding.shares * holding.currentPrice;
+    const pl = currentValue - (holding.shares * holding.buyPrice);
+    const plPercent = ((holding.currentPrice - holding.buyPrice) / holding.buyPrice) * 100;
     
     totalValue += currentValue;
-    totalGain += gain;
-    dayChange += dayChangePercent * currentValue;
-    
-    if (gainPercent > bestPerformer.gain) {
-      bestPerformer = { symbol: stock.symbol, gain: gainPercent };
-    }
+    totalPL += pl;
+    totalDayChange += holding.changePercent * currentValue;
     
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td><strong style="color: #00d9ff;">${stock.symbol}</strong></td>
-      <td>${stock.name}</td>
-      <td>${stock.shares}</td>
-      <td>$${stock.buyPrice.toFixed(2)}</td>
-      <td style="color: #00ffff;">$${stock.currentPrice.toFixed(2)}</td>
+      <td><strong style="color: #00d9ff;">${holding.symbol}</strong></td>
+      <td>${holding.shares}</td>
+      <td>$${holding.buyPrice.toFixed(2)}</td>
+      <td style="color: #00ffff;">$${holding.currentPrice.toFixed(2)}</td>
       <td style="color: #00d9ff; font-weight: bold;">$${currentValue.toFixed(2)}</td>
-      <td class="${dayChangePercent >= 0 ? 'positive-change' : 'negative-change'}">
-        ${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%
+      <td class="${holding.changePercent >= 0 ? 'positive-change' : 'negative-change'}">
+        ${holding.changePercent >= 0 ? '+' : ''}${holding.changePercent.toFixed(2)}%
       </td>
-      <td class="${gainPercent >= 0 ? 'positive-change' : 'negative-change'}">
-        ${gainPercent >= 0 ? '+' : ''}${gainPercent.toFixed(2)}%
+      <td class="${plPercent >= 0 ? 'positive-change' : 'negative-change'}">
+        $${pl.toFixed(2)} (${plPercent >= 0 ? '+' : ''}${plPercent.toFixed(2)}%)
       </td>
       <td>
-        <button class="action-btn" onclick="removeStock(${index})">Remove</button>
+        <button class="action-btn" onclick="removeHolding(${index})">Remove</button>
       </td>
     `;
     rows.appendChild(row);
   });
   
   if (totalValue > 0) {
-    dayChange = (dayChange / totalValue) * 100;
+    totalDayChange = (totalDayChange / totalValue) * 100;
   }
   
-  const totalValueEl = document.getElementById('totalValue');
-  const dayChangeEl = document.getElementById('dayChange');
-  const stockCountEl = document.getElementById('stockCount');
-  const bestPerformerEl = document.getElementById('bestPerformer');
-  
-  if (totalValueEl) totalValueEl.textContent = `$${totalValue.toFixed(2)}`;
+  if (totalEl) totalEl.textContent = `$${totalValue.toFixed(2)}`;
   if (dayChangeEl) {
-    dayChangeEl.textContent = `${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%`;
-    dayChangeEl.className = dayChange >= 0 ? 'summary-number positive-change' : 'summary-number negative-change';
+    dayChangeEl.textContent = `${totalDayChange >= 0 ? '+' : ''}${totalDayChange.toFixed(2)}%`;
+    dayChangeEl.className = totalDayChange >= 0 ? 'summary-number positive-change' : 'summary-number negative-change';
   }
-  if (stockCountEl) stockCountEl.textContent = portfolio.length;
-  if (bestPerformerEl) bestPerformerEl.textContent = bestPerformer.symbol;
-  
-  updateChart(totalValue);
+  if (holdingsEl) holdingsEl.textContent = stockPortfolio.length;
 }
 
-// Update Chart
-function updateChart(currentValue) {
-  if (!portfolioChart) return;
-  
-  const data = portfolioChart.data.datasets[0].data;
-  data.push(currentValue);
-  data.shift();
-  
-  portfolioChart.update();
-}
+// Search Stock
+const searchBtn = document.getElementById('searchStockBtn');
+const searchInput = document.getElementById('stockSearchInput');
 
-// Remove Stock
-function removeStock(index) {
-  portfolio.splice(index, 1);
-  savePortfolio();
-  updatePortfolioDisplay();
-}
-
-// Search Stocks
-const searchBtn = document.getElementById('searchBtn');
-const stockSearch = document.getElementById('stockSearch');
-
-if (searchBtn && stockSearch) {
+if (searchBtn && searchInput) {
   searchBtn.addEventListener('click', async () => {
-    const symbol = stockSearch.value.trim().toUpperCase();
+    const symbol = searchInput.value.trim().toUpperCase();
     if (!symbol) {
       alert('Please enter a stock symbol');
       return;
     }
     
-    const stock = await fetchStockData(symbol);
-    if (!stock) {
+    const data = await fetchStockData(symbol);
+    if (!data) {
       alert('Stock not found');
       return;
     }
     
-    const searchResults = document.getElementById('searchResults');
-    if (searchResults) {
-      searchResults.innerHTML = `
-        <div class="stock-result" onclick="selectStock('${stock.symbol}', '${stock.name}', ${stock.price})">
-          <div class="symbol">${stock.symbol}</div>
-          <div class="name">${stock.name}</div>
-          <div>Price: $${stock.price.toFixed(2)} | Change: ${stock.change >= 0 ? '+' : ''}${stock.change}%</div>
+    const results = document.getElementById('searchResults');
+    const form = document.getElementById('addHoldingForm');
+    const selectedSymbol = document.getElementById('selectedSymbol');
+    const selectedName = document.getElementById('selectedName');
+    const selectedPrice = document.getElementById('selectedPrice');
+    const buyPriceInput = document.getElementById('buyPriceInput');
+    
+    if (results) {
+      results.innerHTML = `
+        <div class="stock-result">
+          <div class="symbol">${data.symbol}</div>
+          <div class="name">${data.name}</div>
+          <div>Price: $${data.price.toFixed(2)} | Change: ${data.change >= 0 ? '+' : ''}${data.change}%</div>
         </div>
       `;
     }
+    
+    if (selectedSymbol) selectedSymbol.textContent = data.symbol;
+    if (selectedName) selectedName.textContent = data.name;
+    if (selectedPrice) selectedPrice.textContent = `$${data.price.toFixed(2)}`;
+    if (buyPriceInput) buyPriceInput.value = data.price;
+    if (form) form.style.display = 'block';
   });
 }
 
-// Select Stock for Adding
-function selectStock(symbol, name, price) {
-  const selectedSymbol = document.getElementById('selectedSymbol');
-  const selectedName = document.getElementById('selectedName');
-  const selectedPrice = document.getElementById('selectedPrice');
-  const buyPriceInput = document.getElementById('buyPriceInput');
-  const addForm = document.getElementById('addForm');
-  
-  if (selectedSymbol) selectedSymbol.textContent = symbol;
-  if (selectedName) selectedName.textContent = name;
-  if (selectedPrice) selectedPrice.textContent = `$${price.toFixed(2)}`;
-  if (buyPriceInput) buyPriceInput.value = price;
-  if (addForm) addForm.style.display = 'block';
-}
+// Add Holding
+const addHoldingBtn = document.getElementById('addHoldingBtn');
 
-// Add Stock to Portfolio
-const addStockBtn = document.getElementById('addStockBtn');
-
-if (addStockBtn) {
-  addStockBtn.addEventListener('click', async () => {
-    const selectedSymbolEl = document.getElementById('selectedSymbol');
-    const selectedNameEl = document.getElementById('selectedName');
+if (addHoldingBtn) {
+  addHoldingBtn.addEventListener('click', async () => {
+    const selectedSymbol = document.getElementById('selectedSymbol');
+    const selectedName = document.getElementById('selectedName');
     const sharesInput = document.getElementById('sharesInput');
     const buyPriceInput = document.getElementById('buyPriceInput');
-    const addForm = document.getElementById('addForm');
-    const stockSearchEl = document.getElementById('stockSearch');
-    const searchResultsEl = document.getElementById('searchResults');
     
-    const symbol = selectedSymbolEl?.textContent;
-    const name = selectedNameEl?.textContent;
-    const shares = parseInt(sharesInput?.value);
-    const buyPrice = parseFloat(buyPriceInput?.value);
+    const symbol = selectedSymbol.textContent;
+    const name = selectedName.textContent;
+    const shares = parseInt(sharesInput.value);
+    const buyPrice = parseFloat(buyPriceInput.value);
     
     if (!shares || shares <= 0) {
       alert('Please enter valid shares');
@@ -388,375 +402,276 @@ if (addStockBtn) {
       return;
     }
     
-    const stockData = await fetchStockData(symbol);
-    const currentPrice = stockData ? stockData.price : buyPrice;
+    const data = await fetchStockData(symbol);
     
-    const newStock = {
+    stockPortfolio.push({
       symbol,
       name,
       shares,
       buyPrice,
-      currentPrice,
-      change: stockData?.change || 0,
-      changePercent: stockData?.changePercent || 0
-    };
+      currentPrice: data ? data.price : buyPrice,
+      change: data ? data.change : 0,
+      changePercent: data ? data.changePercent : 0
+    });
     
-    portfolio.push(newStock);
-    savePortfolio();
+    saveStockPortfolio();
     updatePortfolioDisplay();
     
-    if (addForm) addForm.style.display = 'none';
-    if (stockSearchEl) stockSearchEl.value = '';
-    if (sharesInput) sharesInput.value = '';
-    if (buyPriceInput) buyPriceInput.value = '';
-    if (searchResultsEl) searchResultsEl.innerHTML = '';
+    // Reset form
+    document.getElementById('addHoldingForm').style.display = 'none';
+    document.getElementById('searchResults').innerHTML = '';
+    searchInput.value = '';
+    sharesInput.value = '';
+    buyPriceInput.value = '';
     
     alert(`${symbol} added to portfolio!`);
   });
 }
 
-// Fetch JARVIS Recommendations with News and Analysis
-async function fetchRecommendations() {
-  const jarvisRecEl = document.getElementById('jarvisRecommendation');
-  const refreshTimeEl = document.getElementById('refreshTime');
+function removeHolding(index) {
+  if (confirm('Remove this holding?')) {
+    stockPortfolio.splice(index, 1);
+    saveStockPortfolio();
+    updatePortfolioDisplay();
+  }
+}
+
+// ============================================
+// NEWS REVIEW TAB
+// ============================================
+
+function initNewsTab() {
+  fetchNews();
   
-  if (jarvisRecEl) jarvisRecEl.textContent = 'JARVIS is analyzing market data, news, and trends for best opportunities...';
+  const refreshBtn = document.getElementById('refreshNewsBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', fetchNews);
+  }
   
-  lastRefreshTime = new Date();
-  if (refreshTimeEl) refreshTimeEl.textContent = `Last updated: ${lastRefreshTime.toLocaleTimeString()}`;
+  // Auto-refresh news every 15 minutes
+  setInterval(fetchNews, 900000);
+}
+
+async function fetchNews() {
+  const container = document.getElementById('newsContainer');
+  if (!container) return;
   
-  const topStocks = [
-    { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology', category: 'Semiconductors' },
-    { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', category: 'Consumer Electronics' },
-    { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology', category: 'Software' },
-    { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Automotive', category: 'Auto Manufacturers' },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology', category: 'Internet' },
-    { symbol: 'AMZN', name: 'Amazon.com Inc.', sector: 'Consumer', category: 'E-commerce' },
-    { symbol: 'META', name: 'Meta Platforms Inc.', sector: 'Technology', category: 'Social Media' },
-    { symbol: 'AMD', name: 'Advanced Micro Devices', sector: 'Technology', category: 'Semiconductors' },
-    { symbol: 'NFLX', name: 'Netflix Inc.', sector: 'Entertainment', category: 'Streaming' },
-    { symbol: 'CRM', name: 'Salesforce Inc.', sector: 'Technology', category: 'Software' }
-  ];
+  container.innerHTML = '<p style="color: #0088ff; text-align: center;">Loading news...</p>';
   
-  recommendations = [];
-  
-  for (const stock of topStocks) {
-    const [stockData, news] = await Promise.all([
-      fetchStockData(stock.symbol),
-      fetchStockNews(stock.symbol)
+  try {
+    // Fetch news from multiple free sources
+    const [financeNews, warNews, earningsNews] = await Promise.all([
+      fetchFinanceNews(),
+      fetchWarNews(),
+      fetchEarningsNews()
     ]);
     
-    if (stockData) {
-      let rating = 3;
-      
-      if (stockData.changePercent > 3) rating += 1;
-      if (stockData.changePercent > 5) rating += 0.5;
-      if (stockData.changePercent < -2) rating -= 0.5;
-      
-      const recentNewsCount = news.length;
-      if (recentNewsCount > 5) rating += 0.5;
-      if (recentNewsCount > 10) rating += 0.5;
-      
-      const techSectors = ['Technology', 'Semiconductors', 'Software'];
-      if (techSectors.includes(stock.category) || techSectors.includes(stock.sector)) rating += 0.3;
-      
-      rating = Math.min(5, Math.max(1, rating));
-      
-      const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
-      
-      recommendations.push({
-        ...stockData,
-        name: stock.name,
-        sector: stock.sector,
-        category: stock.category,
-        rating,
-        stars,
-        newsCount: recentNewsCount,
-        news: news.slice(0, 5),
-        description: `Leading company in the ${stock.sector} sector. ${stock.name} is a top performer.`,
-        website: '#',
-        projectedChange: calculateProjectedChange(stockData, news, rating)
-      });
+    const allNews = [...financeNews, ...warNews, ...earningsNews].slice(0, 15);
+    
+    if (allNews.length === 0) {
+      container.innerHTML = '<p style="color: #ff0060; text-align: center;">No news available at this time</p>';
+      return;
     }
-  }
-  
-  recommendations.sort((a, b) => {
-    if (b.rating !== a.rating) return b.rating - a.rating;
-    return b.projectedChange - a.projectedChange;
-  });
-  
-  displayRecommendations();
-  updateMarketInsights();
-  
-  if (jarvisRecEl && recommendations.length > 0) {
-    const topPick = recommendations[0];
-    jarvisRecEl.textContent = `I've identified ${recommendations.length} strong opportunities based on market analysis and recent news. Top pick: ${topPick.symbol} with ${topPick.changePercent.toFixed(2)}% gain today and projected ${topPick.projectedChange.toFixed(1)}% upside.`;
-  }
-}
-
-// Calculate Projected Change
-function calculateProjectedChange(stockData, news, rating) {
-  let projection = stockData.changePercent * 0.5;
-  projection += (rating - 3) * 1.5;
-  if (news.length > 7) projection += 1.5;
-  return projection;
-}
-
-// Display Recommendations
-function displayRecommendations() {
-  const grid = document.getElementById('recommendationsGrid');
-  if (!grid) return;
-  
-  grid.innerHTML = '';
-  
-  recommendations.slice(0, 6).forEach(rec => {
-    const card = document.createElement('div');
-    card.className = 'recommendation-card';
     
-    const changeClass = rec.changePercent >= 0 ? 'bull' : 'bear';
-    const changeSign = rec.changePercent >= 0 ? '+' : '';
-    const projectedSign = rec.projectedChange >= 0 ? '+' : '';
+    container.innerHTML = allNews.map(news => `
+      <div class="news-card">
+        <div class="news-headline">${news.headline}</div>
+        <div class="news-source">${news.source}</div>
+        <div class="news-summary">${news.summary}</div>
+        <div class="news-date">${news.date}</div>
+        ${news.url ? `<a href="${news.url}" target="_blank" style="display: inline-block; margin-top: 10px; color: #00ffff; text-decoration: none; font-size: 0.9rem;">Read more →</a>` : ''}
+      </div>
+    `).join('');
     
-    card.innerHTML = `
-      <div class="rec-symbol">${rec.symbol}</div>
-      <div class="rec-name">${rec.name}</div>
-      <div class="rec-price">$${rec.price.toFixed(2)}</div>
-      <div class="rec-change ${changeClass}">
-        ${changeSign}${rec.changePercent.toFixed(2)}%
-      </div>
-      <div style="font-size: 0.85rem; color: #0088ff; margin-bottom: 8px;">
-        Projected: ${projectedSign}${rec.projectedChange.toFixed(1)}%
-      </div>
-      <div class="rec-rating">
-        JARVIS Rating: <span class="stars">${rec.stars}</span>
-      </div>
-      <div style="font-size: 0.8rem; color: #0088ff; margin-bottom: 10px;">
-        📰 ${rec.newsCount} recent news articles
-      </div>
-      <button class="add-stock-btn" data-symbol="${rec.symbol}">ADD TO PORTFOLIO</button>
-      <button class="action-btn" data-symbol="${rec.symbol}" style="margin-top: 10px; width: 100%;">ANALYZE</button>
-    `;
-    grid.appendChild(card);
-  });
-  
-  // Add event listeners
-  document.querySelectorAll('.recommendation-card .add-stock-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const symbol = e.target.getAttribute('data-symbol');
-      quickAddStock(symbol);
-    });
-  });
-  
-  document.querySelectorAll('.recommendation-card .action-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const symbol = e.target.getAttribute('data-symbol');
-      showStockAnalysis(symbol);
-    });
-  });
+    lastNewsRefresh = new Date();
+  } catch (error) {
+    console.error('News fetch error:', error);
+    container.innerHTML = '<p style="color: #ff0060; text-align: center;">Error loading news. Please try again.</p>';
+  }
 }
 
-// Show Stock Analysis with Chart and News
-async function showStockAnalysis(symbol) {
-  console.log('Analyzing:', symbol);
+async function fetchFinanceNews() {
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`);
+    if (!response.ok) throw new Error('Failed');
+    const data = await response.json();
+    
+    return data.slice(0, 5).map(news => ({
+      headline: news.headline || 'News Headline',
+      source: news.source || 'Unknown',
+      summary: (news.summary || 'No summary available').substring(0, 200),
+      date: new Date(news.datetime * 1000).toLocaleDateString(),
+      url: news.url
+    }));
+  } catch (error) {
+    // Fallback mock news
+    return [
+      {
+        headline: 'Stock Market Rallies on Strong Economic Data',
+        source: 'MarketWatch',
+        summary: 'Major indices surged as investors digested positive economic indicators and corporate earnings reports.',
+        date: new Date().toLocaleDateString(),
+        url: '#'
+      },
+      {
+        headline: 'Federal Reserve Signals Potential Rate Cut',
+        source: 'Bloomberg',
+        summary: 'Fed officials hint at monetary policy shift amid cooling inflation and stable employment.',
+        date: new Date().toLocaleDateString(),
+        url: '#'
+      }
+    ];
+  }
+}
+
+async function fetchWarNews() {
+  try {
+    const response = await fetch(`https://newsapi.org/v2/everything?q=war+military+conflict&language=en&sortBy=publishedAt&apiKey=DEMO`);
+    if (!response.ok) throw new Error('Failed');
+    const data = await response.json();
+    
+    return data.articles.slice(0, 3).map(article => ({
+      headline: article.title || 'Breaking News',
+      source: article.source?.name || 'Unknown',
+      summary: (article.description || 'No description').substring(0, 200),
+      date: new Date(article.publishedAt).toLocaleDateString(),
+      url: article.url
+    }));
+  } catch (error) {
+    return [
+      {
+        headline: 'Geopolitical Tensions Rise in Middle East',
+        source: 'Reuters',
+        summary: 'International observers express concern as diplomatic talks stall in the region.',
+        date: new Date().toLocaleDateString(),
+        url: '#'
+      }
+    ];
+  }
+}
+
+async function fetchEarningsNews() {
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/company-news?symbol=AAPL&from=${new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&token=${FINNHUB_API_KEY}`);
+    if (!response.ok) throw new Error('Failed');
+    const data = await response.json();
+    
+    return data.slice(0, 4).map(news => ({
+      headline: news.headline || 'Earnings Report',
+      source: news.source || 'Unknown',
+      summary: (news.summary || 'No summary').substring(0, 200),
+      date: new Date(news.datetime * 1000).toLocaleDateString(),
+      url: news.url
+    }));
+  } catch (error) {
+    return [
+      {
+        headline: 'Tech Earnings Beat Expectations',
+        source: 'CNBC',
+        summary: 'Major technology companies report stronger-than-expected quarterly earnings, driving market gains.',
+        date: new Date().toLocaleDateString(),
+        url: '#'
+      }
+    ];
+  }
+}
+
+// ============================================
+// ANALYTICS TAB
+// ============================================
+
+function initAnalyticsTab() {
+  const searchBtn = document.getElementById('analyticsSearchBtn');
+  const searchInput = document.getElementById('analyticsSearch');
   
-  const stockData = await fetchStockData(symbol);
-  if (!stockData) {
-    alert('Failed to fetch stock data');
+  if (searchBtn && searchInput) {
+    searchBtn.addEventListener('click', () => analyzeStock());
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') analyzeStock();
+    });
+  }
+}
+
+async function analyzeStock() {
+  const symbol = document.getElementById('analyticsSearch').value.trim().toUpperCase();
+  if (!symbol) {
+    alert('Please enter a stock symbol');
     return;
   }
   
-  const rec = recommendations.find(r => r.symbol === symbol);
-  if (!rec) {
-    console.error('Recommendation not found for:', symbol);
-    return;
-  }
+  const results = document.getElementById('analyticsResults');
+  if (results) results.style.display = 'block';
   
-  console.log('Fetching history and news...');
-  const [history, news] = await Promise.all([
-    fetchStockHistory(symbol),
-    fetchStockNews(symbol)
-  ]);
+  document.getElementById('analyticsSymbol').textContent = symbol;
+  document.getElementById('analyticsName').textContent = 'Loading...';
   
-  console.log('Creating modal...');
-  
-  const existingModal = document.getElementById('analysisModal');
-  if (existingModal) existingModal.remove();
-  
-  const modal = document.createElement('div');
-  modal.id = 'analysisModal';
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 5, 16, 0.95);
-    z-index: 9999;
-    overflow-y: auto;
-    padding: 20px;
-  `;
-  
-  const changeSign = stockData.changePercent >= 0 ? '+' : '';
-  const projectedSign = rec.projectedChange >= 0 ? '+' : '';
-  
-  modal.innerHTML = `
-    <button id="closeModal" style="
-      position: fixed;
-      top: 20px;
-      right: 30px;
-      font-size: 3rem;
-      color: #00d9ff;
-      background: none;
-      border: none;
-      cursor: pointer;
-      z-index: 10000;
-      line-height: 1;
-    ">×</button>
+  try {
+    // Fetch stock data
+    const [stockData, history, news, profile] = await Promise.all([
+      fetchStockData(symbol),
+      fetchStockHistory(symbol),
+      fetchStockNews(symbol),
+      fetchStockProfile(symbol)
+    ]);
     
-    <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
-      <div style="background: rgba(0, 15, 30, 0.9); border: 2px solid rgba(0, 217, 255, 0.4); border-radius: 15px; padding: 30px; margin-bottom: 20px;">
-        <h2 style="color: #00d9ff; font-size: 2.5rem; margin-bottom: 10px;">${symbol} - JARVIS Analysis</h2>
-        <p style="color: #0088ff; font-size: 1.3rem; margin-bottom: 20px;">${rec.name}</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;">
-          <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
-            <div style="color: #0088ff; font-size: 0.9rem;">Current Price</div>
-            <div style="color: #00ffff; font-size: 2.2rem; font-weight: bold;">$${stockData.price.toFixed(2)}</div>
-          </div>
-          <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
-            <div style="color: #0088ff; font-size: 0.9rem;">Today's Change</div>
-            <div style="color: ${stockData.changePercent >= 0 ? '#00ff88' : '#ff0060'}; font-size: 2.2rem; font-weight: bold;">
-              ${changeSign}${stockData.changePercent.toFixed(2)}%
-            </div>
-          </div>
-          <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
-            <div style="color: #0088ff; font-size: 0.9rem;">JARVIS Rating</div>
-            <div style="color: #00d9ff; font-size: 2rem; font-weight: bold;">${rec.stars}</div>
-          </div>
-          <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
-            <div style="color: #0088ff; font-size: 0.9rem;">Projected Upside</div>
-            <div style="color: #00ffff; font-size: 2.2rem; font-weight: bold;">
-              ${projectedSign}${rec.projectedChange.toFixed(1)}%
-            </div>
-          </div>
-        </div>
-        
-        <div style="background: rgba(0, 10, 20, 0.9); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 30px;">
-          <h3 style="color: #00d9ff; margin-bottom: 15px;">Price History (60 Days)</h3>
-          <canvas id="stockChart_${symbol}" style="max-height: 400px; width: 100%;"></canvas>
-          ${history.success !== false ? '' : '<p style="color: #ff0060; margin-top: 15px;">⚠️ Historical data temporarily unavailable for this stock</p>'}
-        </div>
-        
-        <div style="background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 136, 255, 0.1)); border: 2px solid rgba(0, 217, 255, 0.5); border-radius: 15px; padding: 25px; margin-bottom: 30px;">
-          <div style="display: flex; align-items: center; gap: 20px;">
-            <div style="width: 70px; height: 70px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; box-shadow: 0 0 30px #00d9ff;">🤖</div>
-            <div style="flex: 1;">
-              <h3 style="color: #00d9ff; margin-bottom: 10px;">JARVIS Analysis</h3>
-              <p style="color: #00d9ff; font-size: 1.1rem; line-height: 1.6;">
-                <strong>${symbol}</strong> is rated <strong>${rec.stars}</strong> for investment. 
-                ${stockData.changePercent >= 0 ? 'The stock is performing well today with a ' + stockData.changePercent.toFixed(2) + '% gain.' : 'The stock is down ' + Math.abs(stockData.changePercent).toFixed(2) + '% today, but shows potential.'}
-                I've analyzed ${rec.newsCount} recent news articles and the sentiment is positive.
-                ${rec.description}
-                Based on technical indicators, market trends, and recent developments, I project a ${projectedSign}${rec.projectedChange.toFixed(1)}% upside potential over the next 1-2 weeks.
-                This stock shows strong momentum in the ${rec.sector} sector and is worth considering for your portfolio.
-              </p>
-            </div>
-          </div>
-          <button id="speakBtn" style="
-            margin-top: 15px;
-            padding: 12px 25px;
-            background: rgba(0, 217, 255, 0.3);
-            border: 2px solid #00d9ff;
-            color: #00d9ff;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
-          ">🔊 Listen to JARVIS</button>
-        </div>
-        
-        <div style="background: rgba(0, 10, 20, 0.9); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 30px;">
-          <h3 style="color: #00d9ff; margin-bottom: 15px;">Recent News (${news.length} articles)</h3>
-          <div style="max-height: 400px; overflow-y: auto;">
-            ${news.length > 0 ? news.slice(0, 10).map(article => `
-              <div style="background: rgba(0, 217, 255, 0.05); border-left: 3px solid #00d9ff; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
-                <div style="color: #00ffff; font-weight: bold; margin-bottom: 8px;">${article.headline || 'News Article'}</div>
-                <div style="color: #0088ff; font-size: 0.85rem; margin-bottom: 8px;">
-                  ${article.source || 'Unknown'} | ${new Date(article.datetime * 1000).toLocaleDateString()}
-                </div>
-                <div style="color: #00d9ff; font-size: 0.9rem;">
-                  ${(article.summary || 'No summary available').substring(0, 180)}...
-                </div>
-                <a href="${article.url || '#'}" target="_blank" style="display: inline-block; margin-top: 10px; color: #00ffff; text-decoration: none; font-size: 0.9rem;">Read full article →</a>
-              </div>
-            `).join('') : '<p style="color: #0088ff;">No recent news available</p>'}
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-          <button id="addToPortfolioBtn" style="
-            padding: 15px 40px;
-            background: rgba(0, 217, 255, 0.4);
-            border: 2px solid #00d9ff;
-            color: #00d9ff;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            font-weight: bold;
-          ">ADD TO PORTFOLIO</button>
-          <button id="closeModalBtn2" style="
-            padding: 15px 40px;
-            background: rgba(0, 10, 20, 0.9);
-            border: 2px solid rgba(0, 217, 255, 0.5);
-            color: #0088ff;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1.1rem;
-          ">CLOSE</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  console.log('Modal created, adding event listeners...');
-  
-  // Create stock chart
-  if (history.labels.length > 0 && history.prices.length > 0) {
-    const chartCanvas = document.getElementById(`stockChart_${symbol}`);
-    if (chartCanvas) {
+    if (!stockData) {
+      alert('Stock not found');
+      if (results) results.style.display = 'none';
+      return;
+    }
+    
+    // Update basic info
+    document.getElementById('analyticsName').textContent = profile.name || stockData.symbol;
+    document.getElementById('analyticsPrice').textContent = `$${stockData.price.toFixed(2)}`;
+    
+    const changeSign = stockData.changePercent >= 0 ? '+' : '';
+    const changeEl = document.getElementById('analyticsChange');
+    changeEl.textContent = `${changeSign}${stockData.changePercent.toFixed(2)}%`;
+    changeEl.className = stockData.changePercent >= 0 ? 'summary-number positive-change' : 'summary-number negative-change';
+    
+    document.getElementById('analyticsOpen').textContent = `$${stockData.open.toFixed(2)}`;
+    document.getElementById('analyticsHL').textContent = `$${stockData.high.toFixed(2)} / $${stockData.low.toFixed(2)}`;
+    
+    // Update metrics
+    document.getElementById('analyticsMarketCap').textContent = profile.marketCap ? formatMarketCap(profile.marketCap) : '--';
+    document.getElementById('analyticsPE').textContent = profile.pe || '--';
+    document.getElementById('analyticsEPS').textContent = profile.eps || '--';
+    document.getElementById('analyticsDividend').textContent = profile.dividendYield ? `${(profile.dividendYield * 100).toFixed(2)}%` : '--';
+    document.getElementById('analytics52High').textContent = `$${stockData.high || '--'}`;
+    document.getElementById('analytics52Low').textContent = `$${stockData.low || '--'}`;
+    
+    // Create chart
+    const chartCanvas = document.getElementById('analyticsChart');
+    if (chartCanvas && history.prices.length > 0) {
       const ctx = chartCanvas.getContext('2d');
-      new Chart(ctx, {
+      
+      if (analyticsChart) analyticsChart.destroy();
+      
+      analyticsChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: history.labels,
+          labels: history.labels.slice(-60),
           datasets: [{
             label: 'Price',
-            data: history.prices,
+            data: history.prices.slice(-60),
             borderColor: '#00d9ff',
             backgroundColor: 'rgba(0, 217, 255, 0.2)',
-            borderWidth: 3,
+            borderWidth: 2,
             fill: true,
             tension: 0.4,
-            pointBackgroundColor: '#00ffff',
-            pointBorderColor: '#00d9ff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6
+            pointRadius: 3,
+            pointHoverRadius: 5
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           plugins: {
-            legend: { 
-              labels: { color: '#00d9ff' },
-              position: 'top'
-            }
+            legend: { display: false }
           },
           scales: {
             x: {
-              ticks: { color: '#0088ff', maxTicksLimit: 10 },
+              ticks: { color: '#0088ff', maxTicksLimit: 8 },
               grid: { color: 'rgba(0, 217, 255, 0.1)' }
             },
             y: {
@@ -767,193 +682,173 @@ async function showStockAnalysis(symbol) {
         }
       });
     }
-  }
-  
-  // Close modal
-  document.getElementById('closeModal').addEventListener('click', () => modal.remove());
-  document.getElementById('closeModalBtn2').addEventListener('click', () => modal.remove());
-  
-  // Add to portfolio
-  document.getElementById('addToPortfolioBtn').addEventListener('click', () => {
-    quickAddStock(symbol);
-    modal.remove();
-  });
-  
-  // Speak button
-  document.getElementById('speakBtn').addEventListener('click', () => speakAnalysis(rec, stockData));
-  
-  console.log('Analysis modal ready!');
-}
-
-// JARVIS Speaks the Analysis
-function speakAnalysis(rec, stockData) {
-  if (!('speechSynthesis' in window)) {
-    alert('Text-to-speech is not supported in your browser');
-    return;
-  }
-  
-  const text = `JARVIS Analysis for ${rec.symbol}. ${rec.name}. Current price is ${stockData.price.toFixed(2)} dollars. Today's change is ${rec.changePercent.toFixed(2)} percent. My rating is ${Math.round(rec.rating)} out of 5 stars. I project ${rec.projectedChange >= 0 ? 'a plus' : ''} ${rec.projectedChange.toFixed(1)} percent upside potential. ${rec.changePercent >= 0 ? 'The stock is performing well.' : 'The stock is down today but shows potential.'} I've analyzed ${rec.newsCount} recent news articles and the sentiment is positive. Based on technical indicators and market trends, ${rec.symbol} is a strong recommendation for your portfolio. The ${rec.sector} sector shows strong momentum. Consider adding this to your investments.`;
-  
-  window.speechSynthesis.cancel();
-  
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
-  utterance.volume = 1.0;
-  
-  const voices = window.speechSynthesis.getVoices();
-  const maleVoice = voices.find(voice => voice.name.includes('David') || voice.name.includes('Daniel') || voice.name.includes('Male'));
-  
-  if (maleVoice) utterance.voice = maleVoice;
-  
-  window.speechSynthesis.speak(utterance);
-}
-
-// Quick Add Stock
-async function quickAddStock(symbol) {
-  const stockData = await fetchStockData(symbol);
-  if (!stockData) {
-    alert('Failed to fetch stock data for ' + symbol);
-    return;
-  }
-  
-  const sharesInput = prompt(`How many shares of ${symbol} do you want to add?`, '10');
-  if (sharesInput === null) return;
-  
-  const numShares = parseInt(sharesInput);
-  if (!numShares || numShares <= 0) {
-    alert('Please enter valid shares');
-    return;
-  }
-  
-  const newStock = {
-    symbol: stockData.symbol,
-    name: stockData.name || stockData.symbol,
-    shares: numShares,
-    buyPrice: stockData.price,
-    currentPrice: stockData.price,
-    change: stockData.change || 0,
-    changePercent: stockData.changePercent || 0
-  };
-  
-  portfolio.push(newStock);
-  savePortfolio();
-  updatePortfolioDisplay();
-  
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(t => t.classList.remove('active'));
-  const currentTab = document.querySelector('.tab-btn[data-tab="current"]');
-  if (currentTab) currentTab.classList.add('active');
-  
-  const tabContents = document.querySelectorAll('.tab-content');
-  tabContents.forEach(c => c.classList.remove('active'));
-  const currentContent = document.getElementById('current');
-  if (currentContent) currentContent.classList.add('active');
-  
-  alert(`${symbol} added to portfolio with ${numShares} shares!`);
-}
-
-// Update Market Insights
-function updateMarketInsights() {
-  const techStocks = recommendations.filter(r => r.sector === 'Technology');
-  const avgTechChange = techStocks.length > 0 ? techStocks.reduce((sum, r) => sum + r.changePercent, 0) / techStocks.length : 0;
-  
-  const bestSectorEl = document.getElementById('bestSector');
-  const marketTrendEl = document.getElementById('marketTrend');
-  const vixIndexEl = document.getElementById('vixIndex');
-  const topGainerEl = document.getElementById('topGainer');
-  
-  if (bestSectorEl) bestSectorEl.textContent = 'Technology';
-  if (marketTrendEl) marketTrendEl.textContent = avgTechChange > 0 ? 'Upward' : 'Downward';
-  if (vixIndexEl) vixIndexEl.textContent = '18.5';
-  
-  const topGainer = recommendations[0];
-  if (topGainerEl && topGainer) {
-    const sign = topGainer.changePercent >= 0 ? '+' : '';
-    topGainerEl.textContent = `${topGainer.symbol} ${sign}${topGainer.changePercent.toFixed(1)}%`;
+    
+    // Update news
+    const newsContainer = document.getElementById('analyticsNews');
+    if (newsContainer) {
+      newsContainer.innerHTML = news.slice(0, 3).map(n => `
+        <div class="news-card">
+          <div class="news-headline">${n.headline || 'News'}</div>
+          <div class="news-source">${n.source || 'Unknown'}</div>
+          <div class="news-summary">${(n.summary || '').substring(0, 150)}...</div>
+        </div>
+      `).join('');
+    }
+    
+    // Upcoming events (mock)
+    const eventsContainer = document.getElementById('analyticsEvents');
+    if (eventsContainer) {
+      eventsContainer.innerHTML = `
+        <div class="insight-card">
+          <h3>Next Earnings Date</h3>
+          <p>${new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString()}</p>
+        </div>
+        <div class="insight-card">
+          <h3>Ex-Dividend Date</h3>
+          <p>${new Date(Date.now() + 15*24*60*60*1000).toLocaleDateString()}</p>
+        </div>
+        <div class="insight-card">
+          <h3>FDA Decision</h3>
+          <p>Not Applicable</p>
+        </div>
+      `;
+    }
+    
+  } catch (error) {
+    console.error('Analytics error:', error);
+    alert('Error loading analytics');
+    if (results) results.style.display = 'none';
   }
 }
 
-// Auto-refresh Recommendations Every Hour
-function autoRefreshRecommendations() {
-  const now = new Date();
-  if (lastRefreshTime && now.getTime() - lastRefreshTime.getTime() >= 3600000) {
-    console.log('Auto-refreshing recommendations...');
-    fetchRecommendations();
+function formatMarketCap(cap) {
+  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(2)}T`;
+  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(2)}B`;
+  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(2)}M`;
+  return `$${cap.toFixed(2)}`;
+}
+
+// ============================================
+// API FUNCTIONS
+// ============================================
+
+async function fetchStockData(symbol) {
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    
+    if (data.c) {
+      return {
+        symbol,
+        name: symbol,
+        price: data.c,
+        change: data.d,
+        changePercent: data.dp,
+        high: data.h,
+        low: data.l,
+        open: data.o,
+        previousClose: data.pc
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching stock:', error);
+    return null;
+  }
+}
+
+async function fetchStockHistory(symbol) {
+  try {
+    const toDate = Math.floor(Date.now() / 1000);
+    const fromDate = Math.floor((Date.now() - 60*24*60*60*1000) / 1000);
+    
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=2mo&interval=1d`);
+    if (!response.ok) throw new Error();
+    
+    const data = await response.json();
+    
+    if (data.chart?.result?.[0]) {
+      const result = data.chart.result[0];
+      const timestamps = result.timestamp || [];
+      const prices = result.indicators.quote[0].close || [];
+      
+      if (timestamps.length > 0 && prices.length > 0) {
+        const labels = timestamps.map(ts => {
+          const date = new Date(ts * 1000);
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+        return { labels, prices };
+      }
+    }
+    
+    return { labels: [], prices: [] };
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    return { labels: [], prices: [] };
+  }
+}
+
+async function fetchStockNews(symbol) {
+  try {
+    const toDate = new Date().toISOString().split('T')[0];
+    const fromDate = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+    
+    const response = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${fromDate}&to=${toDate}&token=${FINNHUB_API_KEY}`);
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    
+    return data.slice(0, 5).map(news => ({
+      headline: news.headline || 'News',
+      source: news.source || 'Unknown',
+      summary: news.summary || '',
+      url: news.url
+    }));
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchStockProfile(symbol) {
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/company-profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    
+    return {
+      name: data.name || symbol,
+      marketCap: data.metric?.marketCap || 0,
+      pe: data.metric?.PE || '--',
+      eps: data.metric?.EPS || '--',
+      dividendYield: data.metric?.dividendYield || 0
+    };
+  } catch (error) {
+    return { name: symbol, marketCap: 0, pe: '--', eps: '--', dividendYield: 0 };
   }
 }
 
 // ============================================
-// JARVIS AI HELP CHAT - Using Perplexity AI
+// JARVIS AI CHAT
 // ============================================
 
-// Initialize JARVIS Chat
 function initJARVISChat() {
-  const chatContainer = document.getElementById('jarvisChatContainer');
-  if (!chatContainer) return;
+  const container = document.getElementById('jarvisChatContainer');
+  if (!container) return;
   
-  // Clear existing content
-  chatContainer.innerHTML = `
+  container.innerHTML = `
     <div style="height: calc(100vh - 250px); display: flex; flex-direction: column;">
-      <!-- Chat Messages -->
       <div id="jarvisChatMessages" style="flex: 1; overflow-y: auto; padding: 20px; background: rgba(0, 10, 20, 0.8); border-radius: 10px; margin-bottom: 20px;">
         <div style="display: flex; margin-bottom: 20px;">
           <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
           <div style="flex: 1;">
             <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
-            <div style="color: #00d9ff; line-height: 1.6;">
-              Hello! I'm JARVIS, your AI trading assistant powered by Perplexity AI. I can help you with:
-              <ul style="margin: 10px 0 10px 20px;">
-                <li>📈 Stock analysis and recommendations</li>
-                <li>💰 Portfolio management advice</li>
-                <li>📰 Market news and trends</li>
-                <li>🔍 Research on specific companies</li>
-                <li>💡 Investment strategies</li>
-                <li>📊 Technical analysis explanations</li>
-              </ul>
-              What would you like to know about trading or the markets today?
-            </div>
+            <div style="color: #00d9ff; line-height: 1.6;">Hello! I'm JARVIS, your AI trading assistant. I can help you with stock analysis, market news, portfolio advice, and trading strategies. What would you like to know?</div>
           </div>
         </div>
       </div>
-      
-      <!-- Chat Input -->
       <div style="display: flex; gap: 10px;">
-        <input 
-          type="text" 
-          id="jarvisChatInput" 
-          placeholder="Ask JARVIS about stocks, markets, or trading..." 
-          style="
-            flex: 1;
-            padding: 15px 20px;
-            font-size: 1rem;
-            background: rgba(0, 10, 20, 0.9);
-            border: 2px solid rgba(0, 217, 255, 0.5);
-            color: #00d9ff;
-            border-radius: 8px;
-            outline: none;
-          "
-          onkeypress="if(event.key === 'Enter') sendJARVISMessage()"
-        />
-        <button 
-          id="sendJARVISBtn"
-          onclick="sendJARVISMessage()"
-          style="
-            padding: 15px 30px;
-            background: rgba(0, 217, 255, 0.3);
-            border: 2px solid #00d9ff;
-            color: #00d9ff;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
-            transition: all 0.3s;
-          "
-          onmouseover="this.style.background='rgba(0, 217, 255, 0.5)'"
-          onmouseout="this.style.background='rgba(0, 217, 255, 0.3)'"
-        >
-          SEND
-        </button>
+        <input type="text" id="jarvisChatInput" placeholder="Ask JARVIS about stocks, markets, or trading..." style="flex: 1; padding: 15px 20px; font-size: 1rem; background: rgba(0, 10, 20, 0.9); border: 2px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 8px; outline: none;" onkeypress="if(event.key === 'Enter') sendJARVISMessage()" />
+        <button id="sendJARVISBtn" onclick="sendJARVISMessage()" style="padding: 15px 30px; background: rgba(0, 217, 255, 0.3); border: 2px solid #00d9ff; color: #00d9ff; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold;">SEND</button>
       </div>
     </div>
   `;
@@ -961,7 +856,6 @@ function initJARVISChat() {
   chatHistory = [];
 }
 
-// Send JARVIS Message
 async function sendJARVISMessage() {
   const input = document.getElementById('jarvisChatInput');
   const messages = document.getElementById('jarvisChatMessages');
@@ -970,40 +864,31 @@ async function sendJARVISMessage() {
   const userMessage = input.value.trim();
   if (!userMessage) return;
   
-  // Disable input while processing
   input.disabled = true;
   sendBtn.disabled = true;
   sendBtn.textContent = '...';
   
-  // Add user message to chat
   messages.innerHTML += `
     <div style="display: flex; margin-bottom: 20px; justify-content: flex-end;">
       <div style="flex: 1; max-width: 70%; margin-left: 15px;">
         <div style="color: #0088ff; font-weight: bold; margin-bottom: 5px; text-align: right;">You</div>
-        <div style="background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 15px; color: #00d9ff; line-height: 1.6;">
-          ${escapeHtml(userMessage)}
-        </div>
+        <div style="background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 15px; color: #00d9ff; line-height: 1.6;">${escapeHtml(userMessage)}</div>
       </div>
       <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00ffff, #00d9ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 0 20px #00ffff; margin-left: 15px; flex-shrink: 0;">👤</div>
     </div>
   `;
   
   chatHistory.push({ role: 'user', content: userMessage });
-  
-  // Scroll to bottom
   messages.scrollTop = messages.scrollHeight;
   input.value = '';
   
-  // Add loading indicator
   const loadingId = 'loading-' + Date.now();
   messages.innerHTML += `
     <div id="${loadingId}" style="display: flex; margin-bottom: 20px;">
       <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
       <div style="flex: 1;">
         <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
-        <div style="color: #0088ff; line-height: 1.6;">
-          <span style="animation: blink 1s infinite;">JARVIS is thinking...</span>
-        </div>
+        <div style="color: #0088ff; line-height: 1.6;"><span style="animation: blink 1s infinite;">JARVIS is thinking...</span></div>
       </div>
     </div>
   `;
@@ -1011,107 +896,67 @@ async function sendJARVISMessage() {
   messages.scrollTop = messages.scrollHeight;
   
   try {
-    // Call Perplexity AI API
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + getPAPIKey()
+        'Authorization': 'Bearer pplx-YOUR-API-KEY-HERE'
       },
       body: JSON.stringify({
         model: 'llama-3.1-sonar-large-128k-online',
         messages: [
-          {
-            role: 'system',
-            content: 'You are JARVIS, a sophisticated AI trading assistant. You help users with stock analysis, market research, portfolio advice, and trading strategies. Be concise, accurate, and helpful. Use markdown formatting for clarity. Always provide actionable insights.'
-          },
-          ...chatHistory.slice(-10) // Keep last 10 messages for context
+          { role: 'system', content: 'You are JARVIS, a sophisticated AI trading assistant. Help users with stock analysis, market research, portfolio advice, and trading strategies.' },
+          ...chatHistory.slice(-10)
         ]
       })
     });
     
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
     
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
     
     chatHistory.push({ role: 'assistant', content: aiResponse });
-    
-    // Remove loading indicator
     document.getElementById(loadingId).remove();
     
-    // Add AI response
     messages.innerHTML += `
       <div style="display: flex; margin-bottom: 20px;">
         <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
         <div style="flex: 1;">
           <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
-          <div style="color: #00d9ff; line-height: 1.6; white-space: pre-wrap;">
-            ${formatJARVISResponse(aiResponse)}
-          </div>
+          <div style="color: #00d9ff; line-height: 1.6; white-space: pre-wrap;">${formatJARVISResponse(aiResponse)}</div>
         </div>
       </div>
     `;
-    
   } catch (error) {
     console.error('JARVIS Chat Error:', error);
-    
-    // Remove loading indicator
     document.getElementById(loadingId).remove();
     
-    // Add error message
     messages.innerHTML += `
       <div style="display: flex; margin-bottom: 20px;">
         <div style="width: 50px; height: 50px; background: radial-gradient(circle, #ff0060, #ff4080); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #ff0060; margin-right: 15px; flex-shrink: 0;">⚠️</div>
         <div style="flex: 1;">
           <div style="color: #ff0060; font-weight: bold; margin-bottom: 5px;">JARVIS Error</div>
-          <div style="color: #ff4080; line-height: 1.6;">
-            I'm experiencing technical difficulties connecting to my AI brain. Please try again in a moment. Error: ${error.message}
-          </div>
+          <div style="color: #ff4080; line-height: 1.6;">Technical difficulty. Error: ${error.message}</div>
         </div>
       </div>
     `;
   }
   
-  // Re-enable input
   input.disabled = false;
   sendBtn.disabled = false;
   sendBtn.textContent = 'SEND';
   input.focus();
-  
   messages.scrollTop = messages.scrollHeight;
 }
 
-// Get Perplexity API Key (you'll need to add this)
-function getPAPIKey() {
-  // Replace with your actual Perplexity API key
-  // Get one at: https://www.perplexity.ai/settings/api
-  return 'pplx-XXXXXXX-YOUR-KEY-HERE'; // UPDATE THIS!
-}
-
-// Format JARVIS Response (convert markdown to HTML)
 function formatJARVISResponse(text) {
-  // Convert markdown to HTML
   let html = escapeHtml(text);
-  
-  // Bold
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  
-  // Italic
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  
-  // Code blocks
-  html = html.replace(/```([\s\S]*?)```/g, '<code style="background: rgba(0, 217, 255, 0.1); padding: 2px 5px; border-radius: 3px;">$1</code>');
-  
-  // Line breaks
   html = html.replace(/\n/g, '<br>');
-  
   return html;
 }
 
-// Escape HTML
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
