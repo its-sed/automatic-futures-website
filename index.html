@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JARVIS - AI Trading Platform</title>
-  <link rel="stylesheet" href="style.css">
+  <title>JARVIS Trading Platform</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="jarvis-grid"></div>
@@ -21,159 +21,247 @@
           <div class="reactor-pulse"></div>
         </div>
       </div>
-      <h1 class="jarvis-title">J.A.R.V.I.S.</h1>
-      <p class="jarvis-subtitle">AI Trading Intelligence System</p>
+      <h1 class="jarvis-title">JARVIS</h1>
+      <p class="jarvis-subtitle">ADVANCED TRADING INTELLIGENCE SYSTEM</p>
+      
       <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="current">
-          <span class="tab-icon">📊</span>
-          My Portfolio
+        <button class="tab-btn active" data-tab="futures">
+          <span class="tab-icon">🛢️</span>Futures
         </button>
-        <button class="tab-btn" data-tab="recommendations">
-          <span class="tab-icon">🤖</span>
-          JARVIS Recommendations
+        <button class="tab-btn" data-tab="portfolio">
+          <span class="tab-icon">📊</span>Stock Portfolio
         </button>
-        <button class="tab-btn" data-tab="add">
-          <span class="tab-icon">➕</span>
-          Add Stock
+        <button class="tab-btn" data-tab="news">
+          <span class="tab-icon">📰</span>News Review
+        </button>
+        <button class="tab-btn" data-tab="analytics">
+          <span class="tab-icon">🔍</span>Analytics
+        </button>
+        <button class="tab-btn" data-tab="jarvis-help">
+          <span class="tab-icon">🤖</span>JARVIS AI Help
         </button>
       </nav>
     </header>
-
-    <main>
-      <!-- CURRENT PORTFOLIO TAB -->
-      <section id="current" class="tab-content active">
-        <div class="portfolio-summary">
-          <div class="summary-card">
-            <h3>Total Value</h3>
-            <p id="totalValue" class="summary-number">$0.00</p>
-          </div>
-          <div class="summary-card">
-            <h3>Day Change</h3>
-            <p id="dayChange" class="summary-number">0.00%</p>
-          </div>
-          <div class="summary-card">
-            <h3>Stocks Owned</h3>
-            <p id="stockCount" class="summary-number">0</p>
-          </div>
-          <div class="summary-card">
-            <h3>Best Performer</h3>
-            <p id="bestPerformer" class="summary-number">-</p>
+    
+    <!-- FUTURES TAB -->
+    <div id="futures" class="tab-content active">
+      <div class="jarvis-analysis">
+        <div class="jarvis-message">
+          <div class="jarvis-avatar">🛢️</div>
+          <div class="jarvis-text">
+            <h3 id="jarvisRecommendation">JARVIS is analyzing futures markets...</h3>
+            <p id="refreshTime">Last updated: --:--:--</p>
           </div>
         </div>
-
-        <div class="chart-container">
-          <h2>Portfolio Performance (Day Over Day)</h2>
-          <canvas id="portfolioChart"></canvas>
+      </div>
+      
+      <div class="add-stock-container" style="max-width: 500px;">
+        <h2>Add Futures Contract</h2>
+        <div class="form-group">
+          <label>Symbol (e.g., CL for Crude Oil)</label>
+          <input type="text" id="futuresSymbol" placeholder="CL">
         </div>
-
-        <div class="table-container">
-          <h2>Current Holdings</h2>
-          <table class="stock-table">
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Name</th>
-                <th>Shares</th>
-                <th>Buy Price</th>
-                <th>Current Price</th>
-                <th>Value</th>
-                <th>Day Change</th>
-                <th>Total Gain</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="portfolioRows"></tbody>
-          </table>
+        <button class="jarvis-btn" id="addFuturesBtn">Add Futures</button>
+      </div>
+      
+      <div id="futuresList" class="recommendations-grid"></div>
+    </div>
+    
+    <!-- STOCK PORTFOLIO TAB -->
+    <div id="portfolio" class="tab-content">
+      <div class="portfolio-summary">
+        <div class="summary-card">
+          <h3>TOTAL PORTFOLIO VALUE</h3>
+          <div class="summary-number" id="portfolioTotal">$0.00</div>
         </div>
-      </section>
-
-      <!-- RECOMMENDATIONS TAB -->
-      <section id="recommendations" class="tab-content">
+        <div class="summary-card">
+          <h3>DAY CHANGE</h3>
+          <div class="summary-number" id="portfolioDayChange">0.00%</div>
+        </div>
+        <div class="summary-card">
+          <h3>TOTAL HOLDINGS</h3>
+          <div class="summary-number" id="portfolioHoldings">0</div>
+        </div>
+      </div>
+      
+      <div class="add-stock-container">
+        <h2>Add Stock Holding</h2>
+        <div class="search-section">
+          <input type="text" id="stockSearchInput" placeholder="Enter stock symbol (e.g., AAPL)">
+          <button class="jarvis-btn" id="searchStockBtn">Search</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+        
+        <div id="addHoldingForm" style="display: none; margin-top: 20px;">
+          <div class="stock-info">
+            <h3 id="selectedSymbol">--</h3>
+            <p id="selectedName">--</p>
+            <p class="current-price">Current: <span id="selectedPrice">$--</span></p>
+          </div>
+          <div class="form-group">
+            <label>Shares</label>
+            <input type="number" id="sharesInput" placeholder="100">
+          </div>
+          <div class="form-group">
+            <label>Buy Price ($)</label>
+            <input type="number" id="buyPriceInput" step="0.01" placeholder="150.00">
+          </div>
+          <button class="jarvis-btn primary" id="addHoldingBtn">Add to Portfolio</button>
+        </div>
+      </div>
+      
+      <div class="table-container">
+        <h2>My Holdings</h2>
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Shares</th>
+              <th>Buy Price</th>
+              <th>Current Price</th>
+              <th>Value</th>
+              <th>Day Change</th>
+              <th>P/L</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioRows">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- NEWS REVIEW TAB -->
+    <div id="news" class="tab-content">
+      <div class="jarvis-analysis">
+        <div class="jarvis-message">
+          <div class="jarvis-avatar">📰</div>
+          <div class="jarvis-text">
+            <h3>Breaking News & Market Intelligence</h3>
+            <p>Latest news on war, finance, earnings, and market-moving events</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="market-insights">
+        <h2>Latest News</h2>
+        <div id="newsContainer" class="insights-grid">
+          <p style="color: #0088ff; text-align: center;">Loading news...</p>
+        </div>
+        <button class="jarvis-btn" id="refreshNewsBtn" style="margin-top: 20px; width: 100%;">🔄 Refresh News</button>
+      </div>
+    </div>
+    
+    <!-- ANALYTICS TAB -->
+    <div id="analytics" class="tab-content">
+      <div class="add-stock-container">
+        <h2>Stock Analytics</h2>
+        <div class="search-section">
+          <input type="text" id="analyticsSearch" placeholder="Enter stock symbol (e.g., AAPL)">
+          <button class="jarvis-btn" id="analyticsSearchBtn">Analyze</button>
+        </div>
+      </div>
+      
+      <div id="analyticsResults" style="display: none;">
         <div class="jarvis-analysis">
           <div class="jarvis-message">
-            <div class="jarvis-avatar">🤖</div>
+            <div class="jarvis-avatar">📈</div>
             <div class="jarvis-text">
-              <h3>JARVIS AI Analysis</h3>
-              <p id="jarvisRecommendation">Analyzing market data...</p>
+              <h3 id="analyticsSymbol">--</h3>
+              <p id="analyticsName">--</p>
             </div>
           </div>
         </div>
-
-        <div class="recommendations-container">
-          <h2>Top Recommendations Based on Current Market</h2>
-          <div class="recommendations-grid" id="recommendationsGrid">
-            <!-- Recommendations will be loaded here -->
+        
+        <div class="portfolio-summary">
+          <div class="summary-card">
+            <h3>CURRENT PRICE</h3>
+            <div class="summary-number" id="analyticsPrice">$--</div>
+          </div>
+          <div class="summary-card">
+            <h3>DAY CHANGE</h3>
+            <div class="summary-number" id="analyticsChange">--%</div>
+          </div>
+          <div class="summary-card">
+            <h3>OPEN</h3>
+            <div class="summary-number" id="analyticsOpen">$--</div>
+          </div>
+          <div class="summary-card">
+            <h3>HIGH / LOW</h3>
+            <div class="summary-number" id="analyticsHL">$-- / $--</div>
           </div>
         </div>
-
+        
+        <div class="chart-container">
+          <h2>Price Chart (60 Days)</h2>
+          <canvas id="analyticsChart" style="height: 350px;"></canvas>
+        </div>
+        
+        <div class="table-container">
+          <h2>Financial Metrics</h2>
+          <table class="stock-table">
+            <tbody>
+              <tr>
+                <td><strong>Market Cap</strong></td>
+                <td id="analyticsMarketCap">--</td>
+              </tr>
+              <tr>
+                <td><strong>P/E Ratio</strong></td>
+                <td id="analyticsPE">--</td>
+              </tr>
+              <tr>
+                <td><strong>EPS</strong></td>
+                <td id="analyticsEPS">--</td>
+              </tr>
+              <tr>
+                <td><strong>Dividend Yield</strong></td>
+                <td id="analyticsDividend">--</td>
+              </tr>
+              <tr>
+                <td><strong>52 Week High</strong></td>
+                <td id="analytics52High">--</td>
+              </tr>
+              <tr>
+                <td><strong>52 Week Low</strong></td>
+                <td id="analytics52Low">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
         <div class="market-insights">
-          <h2>Market Insights</h2>
-          <div class="insights-grid">
-            <div class="insight-card">
-              <h3>Best Sector</h3>
-              <p id="bestSector">Technology</p>
-              <span class="sector-badge bull">📈 Bullish</span>
-            </div>
-            <div class="insight-card">
-              <h3>Market Trend</h3>
-              <p id="marketTrend">Upward</p>
-              <span class="trend-badge positive">+1.2%</span>
-            </div>
-            <div class="insight-card">
-              <h3>VIX (Fear Index)</h3>
-              <p id="vixIndex">18.5</p>
-              <span class="vix-badge low">Low Fear</span>
-            </div>
-            <div class="insight-card">
-              <h3>Top Gainer Today</h3>
-              <p id="topGainer">NVDA +4.2%</p>
-              <span class="gainer-badge">🚀</span>
-            </div>
+          <h2>Recent News</h2>
+          <div id="analyticsNews" class="insights-grid"></div>
+        </div>
+        
+        <div class="market-insights">
+          <h2>Upcoming Events</h2>
+          <div id="analyticsEvents" class="insights-grid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- JARVIS AI HELP TAB -->
+    <div id="jarvis-help" class="tab-content">
+      <div class="jarvis-analysis">
+        <div class="jarvis-message">
+          <div class="jarvis-avatar">🤖</div>
+          <div class="jarvis-text">
+            <h3>JARVIS AI Assistant</h3>
+            <p>Your intelligent trading companion powered by Perplexity AI</p>
           </div>
         </div>
-      </section>
-
-      <!-- ADD STOCK TAB -->
-      <section id="add" class="tab-content">
-        <div class="add-stock-container">
-          <h2>Add Stock to Portfolio</h2>
-          
-          <div class="search-section">
-            <input type="text" id="stockSearch" placeholder="Search stock symbol (e.g., AAPL, TSLA, NVDA)" />
-            <button id="searchBtn" class="jarvis-btn">SEARCH</button>
-          </div>
-
-          <div id="searchResults" class="search-results"></div>
-
-          <div class="add-form" id="addForm" style="display: none;">
-            <div class="stock-info">
-              <h3 id="selectedSymbol">-</h3>
-              <p id="selectedName">-</p>
-              <p class="current-price" id="selectedPrice">$0.00</p>
-            </div>
-
-            <div class="form-group">
-              <label for="sharesInput">Number of Shares</label>
-              <input type="number" id="sharesInput" placeholder="0" min="1" />
-            </div>
-
-            <div class="form-group">
-              <label for="buyPriceInput">Buy Price ($)</label>
-              <input type="number" id="buyPriceInput" placeholder="0.00" step="0.01" />
-            </div>
-
-            <button id="addStockBtn" class="jarvis-btn primary">ADD TO PORTFOLIO</button>
-          </div>
-        </div>
-      </section>
-    </main>
-
+      </div>
+      
+      <div id="jarvisChatContainer" style="margin: 20px 0;"></div>
+    </div>
+    
     <footer>
-      <p>JARVIS AI Trading Platform | Powered by Finnhub API</p>
-      <p class="system-time">System Active: <span id="currentTime"></span></p>
+      <p>JARVIS Trading Platform &copy; 2025</p>
+      <div class="system-time">System Time: <span id="currentTime">--:--:--</span></div>
     </footer>
   </div>
-
+  
   <script src="app.js"></script>
 </body>
 </html>
