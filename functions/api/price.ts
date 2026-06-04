@@ -10,28 +10,54 @@ export async function onRequestGet({ request, env }) {
       });
     }
     
-    console.log(`Fetching price for: ${symbol}`);
+    console.log(`Fetching API Ninjas price for: ${symbol}`);
     
-    // Finnhub API for stock/ETF quotes
-    // Note: Finnhub free tier works best for stocks/ETFs, not commodity futures
-    // Using symbol as-is (you may need to adjust for specific futures contracts)
-    const apiUrl = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${env.FINNHUB_API_KEY}`;
+    // Map your symbols to API Ninjas commodity names
+    const commodityMap: { [key: string]: string } = {
+      "CLN26": "crude_oil",
+      "BRN26": "brent_crude_oil", 
+      "NGQ26": "natural_gas",
+      "GCQ26": "gold",
+      "ESM26": "silver"  // No S&P futures on API Ninjas free tier
+    };
     
-    const response = await fetch(apiUrl);
+    const commodity = commodityMap[symbol];
+    
+    if (!commodity) {
+      return new Response(JSON.stringify({ error: `unknown symbol: ${symbol}` }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    console.log(`Commodity name: ${commodity}`);
+    
+    // API Ninjas endpoint
+    const apiUrl = `https://api.ninjas.io/commodityprice?commodity=${commodity}`;
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        "X-API-Key": "AGZ2PrJO8iBeOQ7OP1RnuQJ5wOp5ez8qutAsPnM6"
+      }
+    });
+    
+    console.log('Response status:', response.status);
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API error:', errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
-    console.log('Finnhub response:', data);
+    console.log('API Ninjas response:', data);
     
-    // Finnhub returns 'c' for current price
-    const price = data.c || data.price || 0;
+    // Get the price from the response
+    // API Ninjas returns: {status: "success", commodity: "gold", price: 2034.50}
+    const price = data.price || data.last_price || 0;
     
     if (!price || price === 0) {
-      console.warn('No price data for symbol:', symbol);
-      // Return a default/mock price if no data
+      console.warn('No price data for commodity:', commodity);
       return new Response(JSON.stringify({ price: 50 }), {
         headers: {
           "Content-Type": "application/json",
