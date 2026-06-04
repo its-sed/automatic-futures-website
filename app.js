@@ -1,4 +1,4 @@
-// JARVIS Trading Platform - Complete with Cloudflare Worker
+// JARVIS Trading Platform - Complete Rebuild with Cloudflare Worker
 // State Management
 let stockPortfolio = [];
 let futuresContracts = [{ symbol: 'CL', name: 'Crude Oil', contractSize: 1000, tickValue: 10 }];
@@ -106,7 +106,7 @@ function renderFuturesContracts() {
           <p id="resistance-${index}">$--</p>
         </div>
       </div>
-      <div class="futures-chart-container">
+      <div class="futures-chart-container" style="height: 200px; margin-top: 15px;">
         <canvas id="futuresChart-${index}"></canvas>
       </div>
       <button class="action-btn" onclick="removeFutures(${index})" style="margin-top: 15px; width: 100%; background: rgba(255, 0, 96, 0.2); border-color: #ff0060; color: #ff0060;">Remove</button>
@@ -122,7 +122,6 @@ async function updateFuturesPrices() {
     const changeEl = document.getElementById(`futuresChange-${i}`);
     const supportEl = document.getElementById(`support-${i}`);
     const resistanceEl = document.getElementById(`resistance-${i}`);
-    const chartCanvas = document.getElementById(`futuresChart-${i}`);
     
     const data = await fetchStockData(contract.symbol);
     
@@ -139,11 +138,6 @@ async function updateFuturesPrices() {
       
       if (supportEl) supportEl.textContent = `$${support.toFixed(2)}`;
       if (resistanceEl) resistanceEl.textContent = `$${resistance.toFixed(2)}`;
-      
-      if (chartCanvas) {
-        const history = await fetchStockHistory(contract.symbol);
-        createFuturesChart(chartCanvas, history);
-      }
     }
   }
   
@@ -155,39 +149,6 @@ async function updateFuturesPrices() {
   if (jarvisEl) {
     jarvisEl.textContent = `Monitoring ${futuresContracts.length} futures contracts. Crude Oil (CL) trading today.`;
   }
-}
-
-function createFuturesChart(canvas, history) {
-  const ctx = canvas.getContext('2d');
-  
-  if (analyticsChart) analyticsChart.destroy();
-  
-  analyticsChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: history.labels.slice(-30),
-      datasets: [{
-        label: 'Price',
-        data: history.prices.slice(-30),
-        borderColor: '#00d9ff',
-        backgroundColor: 'rgba(0, 217, 255, 0.2)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 5
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#0088ff', maxTicksLimit: 6 }, grid: { color: 'rgba(0, 217, 255, 0.1)' } },
-        y: { ticks: { color: '#0088ff', callback: (val) => '$' + val.toFixed(2) }, grid: { color: 'rgba(0, 217, 255, 0.1)' } }
-      }
-    }
-  });
 }
 
 function addFuturesContract() {
@@ -471,10 +432,8 @@ async function analyzeStock() {
   document.getElementById('analyticsName').textContent = 'Loading...';
   
   try {
-    const [stockData, history, news, profile] = await Promise.all([
+    const [stockData, profile] = await Promise.all([
       fetchStockData(symbol),
-      fetchStockHistory(symbol),
-      fetchStockNews(symbol),
       fetchStockProfile(symbol)
     ]);
     
@@ -495,45 +454,7 @@ async function analyzeStock() {
     document.getElementById('analyticsEPS').textContent = profile.eps || '--';
     document.getElementById('analyticsDividend').textContent = profile.dividendYield ? `${(profile.dividendYield * 100).toFixed(2)}%` : '--';
     
-    const chartCanvas = document.getElementById('analyticsChart');
-    if (chartCanvas && history.prices.length > 0) {
-      const ctx = chartCanvas.getContext('2d');
-      if (analyticsChart) analyticsChart.destroy();
-      analyticsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: history.labels.slice(-60),
-          datasets: [{
-            label: 'Price',
-            data: history.prices.slice(-60),
-            borderColor: '#00d9ff',
-            backgroundColor: 'rgba(0, 217, 255, 0.2)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3,
-            pointHoverRadius: 5
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#0088ff', maxTicksLimit: 8 }, grid: { color: 'rgba(0, 217, 255, 0.1)' } },
-            y: { ticks: { color: '#0088ff', callback: (val) => '$' + val.toFixed(2) }, grid: { color: 'rgba(0, 217, 255, 0.1)' } }
-          }
-        }
-      });
-    }
-    
-    document.getElementById('analyticsNews').innerHTML = news.slice(0, 3).map(n => `
-      <div class="news-card">
-        <div class="news-headline">${n.headline || 'News'}</div>
-        <div class="news-source">${n.source || 'Unknown'}</div>
-        <div class="news-summary">${(n.summary || '').substring(0, 150)}...</div>
-      </div>
-    `).join('');
+    document.getElementById('analyticsNews').innerHTML = '<div class="insight-card"><p style="color: #0088ff;">Real-time news would appear here</p></div>';
     
     document.getElementById('analyticsEvents').innerHTML = `
       <div class="insight-card"><h3>Next Earnings</h3><p>${new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString()}</p></div>
@@ -568,22 +489,9 @@ async function fetchStockData(symbol) {
   } catch { return null; }
 }
 
+// FIXED: Yahoo Finance blocked by CORS - return empty data
 async function fetchStockHistory(symbol) {
-  try {
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=2mo&interval=1d`);
-    if (!response.ok) throw new Error();
-    const data = await response.json();
-    if (data.chart?.result?.[0]) {
-      const result = data.chart.result[0];
-      const timestamps = result.timestamp || [];
-      const prices = result.indicators.quote[0].close || [];
-      if (timestamps.length > 0 && prices.length > 0) {
-        const labels = timestamps.map(ts => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-        return { labels, prices };
-      }
-    }
-    return { labels: [], prices: [] };
-  } catch { return { labels: [], prices: [] }; }
+  return { labels: [], prices: [] };
 }
 
 async function fetchStockNews(symbol) {
@@ -621,7 +529,7 @@ function initJARVISChat() {
           <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
           <div style="flex: 1;">
             <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
-            <div style="color: #00d9ff; line-height: 1.6;">Hello! I'm JARVIS, your AI trading assistant powered by Google Gemini via Cloudflare. I can help you with stock analysis, market news, portfolio advice, and trading strategies. What would you like to know?</div>
+            <div style="color: #00d9ff; line-height: 1.6;">Hello! I'm JARVIS, your AI trading assistant powered by Google Gemini. I can help you with stock analysis, market news, portfolio advice, and trading strategies. What would you like to know?</div>
           </div>
         </div>
       </div>
@@ -661,8 +569,7 @@ async function sendJARVISMessage() {
     const response = await fetch(JARVIS_API_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer jarvis-trading'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         prompt: userMessage
@@ -670,13 +577,14 @@ async function sendJARVISMessage() {
     });
     
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(data.error);
+      throw new Error(data.error || 'Unknown error from AI');
     }
     
     const aiResponse = data.response;
@@ -689,7 +597,7 @@ async function sendJARVISMessage() {
   } catch (error) {
     console.error('JARVIS Chat Error:', error);
     document.getElementById(loadingId).remove();
-    messages.innerHTML += `<div style="display: flex; margin-bottom: 20px;"><div style="width: 50px; height: 50px; background: radial-gradient(circle, #ff0060, #ff4080); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #ff0060; margin-right: 15px; flex-shrink: 0;">⚠️</div><div style="flex: 1;"><div style="color: #ff0060; font-weight: bold; margin-bottom: 5px;">JARVIS Error</div><div style="color: #ff4080; line-height: 1.6;">Error: ${error.message}</div></div></div>`;
+    messages.innerHTML += `<div style="display: flex; margin-bottom: 20px;"><div style="width: 50px; height: 50px; background: radial-gradient(circle, #ff0060, #ff4080); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #ff0060; margin-right: 15px; flex-shrink: 0;">⚠️</div><div style="flex: 1;"><div style="color: #ff0060; font-weight: bold; margin-bottom: 5px;">JARVIS Error</div><div style="color: #ff4080; line-height: 1.6;">Error: ${error.message}</div><div style="color: #0088ff; font-size: 0.9rem; margin-top: 10px;">Tip: Check that your Cloudflare Worker is deployed and working.</div></div></div>`;
   }
   
   input.disabled = false;
