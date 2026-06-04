@@ -1,49 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Futures Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JARVIS - Crude Oil Futures Terminal</title>
+  >
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>Futures Dashboard</h1>
-      <p>Live prices, support, and resistance</p>
-    </div>
-    <div class="status">
-      <span id="connDot" class="dot offline"></span>
-      <span id="connText">Disconnected</span>
-    </div>
-  </header>
+  <div class="jarvis-bg"></div>
+  
+  <div class="container">
+    <header>
+      <div class="arc-reactor">
+        <div class="reactor-core"></div>
+        <div class="reactor-ring ring-1"></div>
+        <div class="reactor-ring ring-2"></div>
+        <div class="reactor-ring ring-3"></div>
+      </div>
+      <h1 class="jarvis-title">J.A.R.V.I.S.</h1>
+      <p class="jarvis-subtitle">Just A Rather Very Intelligent System</p>
+      <div class="connection-status">
+        <span id="connDot" class="dot offline"></span>
+        <span id="connText">Connecting...</span>
+      </div>
+    </header>
 
-  <main>
-    <section class="controls">
-      <input id="symbolInput" placeholder="Add symbol like CLN26" />
-      <button id="addBtn">Add</button>
-      <button id="refreshBtn">Refresh</button>
-    </section>
+    <main>
+      <section class="chart-section">
+        <h2 class="section-title">CRUDE OIL (WTI) FUTURES</h2>
+        <div id="chartContainer" class="chart-container"></div>
+      </section>
 
-    <section class="panel">
-      <table>
-        <thead>
-          <tr>
-            <th>Contract</th>
-            <th>Symbol</th>
-            <th>Current Price</th>
-            <th>Support 1</th>
-            <th>Support 2</th>
-            <th>Resistance 1</th>
-            <th>Resistance 2</th>
-            <th>Updated</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </section>
-  </main>
+      <section class="data-section">
+        <h2 class="section-title">FUTURES MONITORING</h2>
+        <table class="futures-table">
+          <thead>
+            <tr>
+              <th>Contract</th>
+              <th>Symbol</th>
+              <th>Price</th>
+              <th>Support 1</th>
+              <th>Support 2</th>
+              <th>Resistance 1</th>
+              <th>Resistance 2</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
 
+      <section class="controls-section">
+        <div class="add-symbol">
+          <input type="text" id="symbolInput" placeholder="Add Symbol (e.g., CLN26)" />
+          <button id="addBtn" class="jarvis-btn">ADD</button>
+        </div>
+        <button id="refreshBtn" class="jarvis-btn primary">REFRESH ALL</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>Data Source: OilPriceAPI | Powered by J.A.R.V.I.S.</p>
+      <p class="timestamp">System Time: <span id="systemTime"></span></p>
+    </footer>
+  </div>
+
+  <script src="https://s3.tradingview.com/tv.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
