@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSystemTime();
   fetchRecommendations();
   setInterval(updateSystemTime, 1000);
-  setInterval(autoRefreshRecommendations, 3600000); // Auto-refresh every hour
+  setInterval(autoRefreshRecommendations, 3600000);
 });
 
 // Tab Navigation
@@ -164,10 +164,10 @@ async function fetchStockHistory(symbol) {
   try {
     const today = new Date();
     const twoMonthsAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
-    const fromDate = twoMonthsAgo.toISOString().split('T')[0];
-    const toDate = today.toISOString().split('T')[0];
+    const fromDate = Math.floor(twoMonthsAgo.getTime() / 1000);
+    const toDate = Math.floor(today.getTime() / 1000);
     
-    const response = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol.toUpperCase()}&resolution=D&from=${Date.parse(fromDate) / 1000}&to=${Date.parse(toDate) / 1000}&token=${API_KEY}`);
+    const response = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol.toUpperCase()}&resolution=D&from=${fromDate}&to=${toDate}&token=${API_KEY}`);
     if (!response.ok) throw new Error('Failed to fetch history');
     const data = await response.json();
     
@@ -233,7 +233,6 @@ function updatePortfolioDisplay() {
     rows.appendChild(row);
   });
   
-  // Update summary
   if (totalValue > 0) {
     dayChange = (dayChange / totalValue) * 100;
   }
@@ -251,7 +250,6 @@ function updatePortfolioDisplay() {
   if (stockCountEl) stockCountEl.textContent = portfolio.length;
   if (bestPerformerEl) bestPerformerEl.textContent = bestPerformer.symbol;
   
-  // Update chart
   updateChart(totalValue);
 }
 
@@ -347,7 +345,6 @@ if (addStockBtn) {
       return;
     }
     
-    // Get current price
     const stockData = await fetchStockData(symbol);
     const currentPrice = stockData ? stockData.price : buyPrice;
     
@@ -365,7 +362,6 @@ if (addStockBtn) {
     savePortfolio();
     updatePortfolioDisplay();
     
-    // Reset form
     if (addForm) addForm.style.display = 'none';
     if (stockSearchEl) stockSearchEl.value = '';
     if (sharesInput) sharesInput.value = '';
@@ -386,7 +382,6 @@ async function fetchRecommendations() {
   lastRefreshTime = new Date();
   if (refreshTimeEl) refreshTimeEl.textContent = `Last updated: ${lastRefreshTime.toLocaleTimeString()}`;
   
-  // Top stocks to analyze
   const topStocks = [
     { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology' },
     { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
@@ -402,7 +397,6 @@ async function fetchRecommendations() {
   
   recommendations = [];
   
-  // Analyze each stock
   for (const stock of topStocks) {
     const [stockData, news, profile] = await Promise.all([
       fetchStockData(stock.symbol),
@@ -411,24 +405,19 @@ async function fetchRecommendations() {
     ]);
     
     if (stockData) {
-      // Calculate AI rating based on multiple factors
-      let rating = 3; // Base rating
+      let rating = 3;
       
-      // Price performance
       if (stockData.changePercent > 3) rating += 1;
       if (stockData.changePercent > 5) rating += 0.5;
       if (stockData.changePercent < -2) rating -= 0.5;
       
-      // News sentiment (positive news increases rating)
       const recentNewsCount = news.length;
       if (recentNewsCount > 5) rating += 0.5;
       if (recentNewsCount > 10) rating += 0.5;
       
-      // Company sector
       const techSectors = ['Technology', 'Semiconductors', 'Software'];
       if (techSectors.includes(profile.category || stock.sector)) rating += 0.3;
       
-      // Cap rating at 5
       rating = Math.min(5, Math.max(1, rating));
       
       const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
@@ -448,7 +437,6 @@ async function fetchRecommendations() {
     }
   }
   
-  // Sort by rating and projected performance
   recommendations.sort((a, b) => {
     if (b.rating !== a.rating) return b.rating - a.rating;
     return b.projectedChange - a.projectedChange;
@@ -463,17 +451,11 @@ async function fetchRecommendations() {
   }
 }
 
-// Calculate Projected Change (AI simulation)
+// Calculate Projected Change
 function calculateProjectedChange(stockData, news, rating) {
-  // Base projection on current performance and rating
-  let projection = stockData.changePercent * 0.5; // 50% of today's gain
-  
-  // Add rating bonus
+  let projection = stockData.changePercent * 0.5;
   projection += (rating - 3) * 1.5;
-  
-  // News momentum
   if (news.length > 7) projection += 1.5;
-  
   return projection;
 }
 
@@ -508,27 +490,32 @@ function displayRecommendations() {
       <div style="font-size: 0.8rem; color: #0088ff; margin-bottom: 10px;">
         📰 ${rec.newsCount} recent news articles
       </div>
-      <button class="add-stock-btn" id="add-${rec.symbol}">ADD TO PORTFOLIO</button>
-      <button class="action-btn" id="analyze-${rec.symbol}" style="margin-top: 10px; width: 100%;">ANALYZE</button>
+      <button class="add-stock-btn" data-symbol="${rec.symbol}">ADD TO PORTFOLIO</button>
+      <button class="action-btn" data-symbol="${rec.symbol}" style="margin-top: 10px; width: 100%;">ANALYZE</button>
     `;
     grid.appendChild(card);
-    
-    // Add event listeners
-    const addBtn = document.getElementById(`add-${rec.symbol}`);
-    const analyzeBtn = document.getElementById(`analyze-${rec.symbol}`);
-    
-    if (addBtn) {
-      addBtn.addEventListener('click', () => quickAddStock(rec.symbol));
-    }
-    
-    if (analyzeBtn) {
-      analyzeBtn.addEventListener('click', () => showStockAnalysis(rec.symbol));
-    }
+  });
+  
+  // Add event listeners after rendering
+  document.querySelectorAll('.recommendation-card .add-stock-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const symbol = e.target.getAttribute('data-symbol');
+      quickAddStock(symbol);
+    });
+  });
+  
+  document.querySelectorAll('.recommendation-card .action-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const symbol = e.target.getAttribute('data-symbol');
+      showStockAnalysis(symbol);
+    });
   });
 }
 
 // Show Stock Analysis with Chart and News
 async function showStockAnalysis(symbol) {
+  console.log('Analyzing:', symbol);
+  
   const stockData = await fetchStockData(symbol);
   if (!stockData) {
     alert('Failed to fetch stock data');
@@ -536,12 +523,22 @@ async function showStockAnalysis(symbol) {
   }
   
   const rec = recommendations.find(r => r.symbol === symbol);
-  if (!rec) return;
+  if (!rec) {
+    console.error('Recommendation not found for:', symbol);
+    return;
+  }
   
+  console.log('Fetching history and news...');
   const [history, news] = await Promise.all([
     fetchStockHistory(symbol),
     fetchStockNews(symbol)
   ]);
+  
+  console.log('Creating modal...');
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('analysisModal');
+  if (existingModal) existingModal.remove();
   
   // Create modal
   const modal = document.createElement('div');
@@ -553,59 +550,61 @@ async function showStockAnalysis(symbol) {
     width: 100%;
     height: 100%;
     background: rgba(0, 5, 16, 0.95);
-    z-index: 1000;
+    z-index: 9999;
     overflow-y: auto;
     padding: 20px;
   `;
   
+  const changeSign = stockData.changePercent >= 0 ? '+' : '';
+  const projectedSign = rec.projectedChange >= 0 ? '+' : '';
+  
   modal.innerHTML = `
-    <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-      <button id="closeModal" style="
-        position: absolute;
-        top: 20px;
-        right: 30px;
-        font-size: 2rem;
-        color: #00d9ff;
-        background: none;
-        border: none;
-        cursor: pointer;
-        z-index: 1001;
-      ">×</button>
-      
+    <button id="closeModal" style="
+      position: fixed;
+      top: 20px;
+      right: 30px;
+      font-size: 3rem;
+      color: #00d9ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 10000;
+      line-height: 1;
+    ">×</button>
+    
+    <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
       <div style="background: rgba(0, 15, 30, 0.9); border: 2px solid rgba(0, 217, 255, 0.4); border-radius: 15px; padding: 30px; margin-bottom: 20px;">
-        <h2 style="color: #00d9ff; font-size: 2rem; margin-bottom: 10px;">${symbol} - JARVIS Analysis</h2>
-        <p style="color: #0088ff; font-size: 1.2rem; margin-bottom: 20px;">${rec.name}</p>
+        <h2 style="color: #00d9ff; font-size: 2.5rem; margin-bottom: 10px;">${symbol} - JARVIS Analysis</h2>
+        <p style="color: #0088ff; font-size: 1.3rem; margin-bottom: 20px;">${rec.name}</p>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;">
           <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
             <div style="color: #0088ff; font-size: 0.9rem;">Current Price</div>
-            <div style="color: #00ffff; font-size: 2rem; font-weight: bold;">$${stockData.price.toFixed(2)}</div>
+            <div style="color: #00ffff; font-size: 2.2rem; font-weight: bold;">$${stockData.price.toFixed(2)}</div>
           </div>
           <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
             <div style="color: #0088ff; font-size: 0.9rem;">Today's Change</div>
-            <div style="color: ${stockData.changePercent >= 0 ? '#00ff88' : '#ff0060'}; font-size: 2rem; font-weight: bold;">
-              ${stockData.changePercent >= 0 ? '+' : ''}${stockData.changePercent.toFixed(2)}%
+            <div style="color: ${stockData.changePercent >= 0 ? '#00ff88' : '#ff0060'}; font-size: 2.2rem; font-weight: bold;">
+              ${changeSign}${stockData.changePercent.toFixed(2)}%
             </div>
           </div>
           <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
             <div style="color: #0088ff; font-size: 0.9rem;">JARVIS Rating</div>
-            <div style="color: #00d9ff; font-size: 1.8rem; font-weight: bold;">${rec.stars}</div>
+            <div style="color: #00d9ff; font-size: 2rem; font-weight: bold;">${rec.stars}</div>
           </div>
           <div style="background: rgba(0, 217, 255, 0.1); padding: 20px; border-radius: 10px; text-align: center;">
             <div style="color: #0088ff; font-size: 0.9rem;">Projected Upside</div>
-            <div style="color: #00ffff; font-size: 2rem; font-weight: bold;">
-              ${rec.projectedChange >= 0 ? '+' : ''}${rec.projectedChange.toFixed(1)}%
+            <div style="color: #00ffff; font-size: 2.2rem; font-weight: bold;">
+              ${projectedSign}${rec.projectedChange.toFixed(1)}%
             </div>
           </div>
         </div>
         
-        <!-- Price Chart -->
         <div style="background: rgba(0, 10, 20, 0.9); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 30px;">
           <h3 style="color: #00d9ff; margin-bottom: 15px;">Price History (60 Days)</h3>
-          <canvas id="stockChart_${symbol}" style="max-height: 400px;"></canvas>
+          <canvas id="stockChart_${symbol}" style="max-height: 400px; width: 100%;"></canvas>
         </div>
         
-        <!-- JARVIS Voice Message -->
         <div style="background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 136, 255, 0.1)); border: 2px solid rgba(0, 217, 255, 0.5); border-radius: 15px; padding: 25px; margin-bottom: 30px;">
           <div style="display: flex; align-items: center; gap: 20px;">
             <div style="width: 70px; height: 70px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; box-shadow: 0 0 30px #00d9ff;">🤖</div>
@@ -613,10 +612,10 @@ async function showStockAnalysis(symbol) {
               <h3 style="color: #00d9ff; margin-bottom: 10px;">JARVIS Analysis</h3>
               <p style="color: #00d9ff; font-size: 1.1rem; line-height: 1.6;">
                 <strong>${symbol}</strong> is rated <strong>${rec.stars}</strong> for investment. 
-                ${rec.changePercent >= 0 ? 'The stock is performing well today with a ' + rec.changePercent.toFixed(2) + '% gain.' : 'The stock is down ' + Math.abs(rec.changePercent).toFixed(2) + '% today, but shows potential.'}
+                ${stockData.changePercent >= 0 ? 'The stock is performing well today with a ' + stockData.changePercent.toFixed(2) + '% gain.' : 'The stock is down ' + Math.abs(stockData.changePercent).toFixed(2) + '% today, but shows potential.'}
                 I've analyzed ${rec.newsCount} recent news articles and the sentiment is positive.
-                ${rec.description.substring(0, 200)}...
-                Based on technical indicators, market trends, and recent developments, I project a ${rec.projectedChange >= 0 ? '+' : ''}${rec.projectedChange.toFixed(1)}% upside potential over the next 1-2 weeks.
+                ${rec.description.substring(0, 180)}...
+                Based on technical indicators, market trends, and recent developments, I project a ${projectedSign}${rec.projectedChange.toFixed(1)}% upside potential over the next 1-2 weeks.
                 This stock shows strong momentum in the ${rec.sector} sector and is worth considering for your portfolio.
               </p>
             </div>
@@ -634,27 +633,25 @@ async function showStockAnalysis(symbol) {
           ">🔊 Listen to JARVIS</button>
         </div>
         
-        <!-- Recent News -->
         <div style="background: rgba(0, 10, 20, 0.9); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 30px;">
           <h3 style="color: #00d9ff; margin-bottom: 15px;">Recent News (${news.length} articles)</h3>
           <div style="max-height: 400px; overflow-y: auto;">
-            ${news.slice(0, 10).map(article => `
+            ${news.length > 0 ? news.slice(0, 10).map(article => `
               <div style="background: rgba(0, 217, 255, 0.05); border-left: 3px solid #00d9ff; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
                 <div style="color: #00ffff; font-weight: bold; margin-bottom: 8px;">${article.headline || 'News Article'}</div>
                 <div style="color: #0088ff; font-size: 0.85rem; margin-bottom: 8px;">
                   ${article.source || 'Unknown'} | ${new Date(article.datetime * 1000).toLocaleDateString()}
                 </div>
                 <div style="color: #00d9ff; font-size: 0.9rem;">
-                  ${(article.summary || 'No summary available').substring(0, 200)}...
+                  ${(article.summary || 'No summary available').substring(0, 180)}...
                 </div>
                 <a href="${article.url || '#'}" target="_blank" style="display: inline-block; margin-top: 10px; color: #00ffff; text-decoration: none; font-size: 0.9rem;">Read full article →</a>
               </div>
-            `).join('')}
+            `).join('') : '<p style="color: #0088ff;">No recent news available</p>'}
           </div>
         </div>
         
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 15px; justify-content: center;">
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
           <button id="addToPortfolioBtn" style="
             padding: 15px 40px;
             background: rgba(0, 217, 255, 0.4);
@@ -680,13 +677,14 @@ async function showStockAnalysis(symbol) {
   `;
   
   document.body.appendChild(modal);
+  console.log('Modal created, adding event listeners...');
   
   // Create stock chart
   if (history.labels.length > 0 && history.prices.length > 0) {
     const chartCanvas = document.getElementById(`stockChart_${symbol}`);
     if (chartCanvas) {
       const ctx = chartCanvas.getContext('2d');
-      const stockChart = new Chart(ctx, {
+      new Chart(ctx, {
         type: 'line',
         data: {
           labels: history.labels,
@@ -709,9 +707,7 @@ async function showStockAnalysis(symbol) {
           responsive: true,
           maintainAspectRatio: true,
           plugins: {
-            legend: {
-              labels: { color: '#00d9ff' }
-            }
+            legend: { labels: { color: '#00d9ff' } }
           },
           scales: {
             x: {
@@ -729,27 +725,19 @@ async function showStockAnalysis(symbol) {
   }
   
   // Close modal
-  const closeBtns = [document.getElementById('closeModal'), document.getElementById('closeModalBtn2')];
-  closeBtns.forEach(btn => {
-    if (btn) btn.addEventListener('click', () => {
-      modal.remove();
-    });
-  });
+  document.getElementById('closeModal').addEventListener('click', () => modal.remove());
+  document.getElementById('closeModalBtn2').addEventListener('click', () => modal.remove());
   
   // Add to portfolio
-  const addToPortfolioBtn = document.getElementById('addToPortfolioBtn');
-  if (addToPortfolioBtn) {
-    addToPortfolioBtn.addEventListener('click', () => {
-      quickAddStock(symbol);
-      modal.remove();
-    });
-  }
+  document.getElementById('addToPortfolioBtn').addEventListener('click', () => {
+    quickAddStock(symbol);
+    modal.remove();
+  });
   
   // Speak button
-  const speakBtn = document.getElementById('speakBtn');
-  if (speakBtn) {
-    speakBtn.addEventListener('click', () => speakAnalysis(rec, stockData));
-  }
+  document.getElementById('speakBtn').addEventListener('click', () => speakAnalysis(rec, stockData));
+  
+  console.log('Analysis modal ready!');
 }
 
 // JARVIS Speaks the Analysis
@@ -759,21 +747,8 @@ function speakAnalysis(rec, stockData) {
     return;
   }
   
-  const text = `
-    JARVIS Analysis for ${rec.symbol}. 
-    ${rec.name}.
-    Current price is ${stockData.price.toFixed(2)} dollars.
-    Today's change is ${rec.changePercent.toFixed(2)} percent.
-    My rating is ${Math.round(rec.rating)} out of 5 stars.
-    I project ${rec.projectedChange >= 0 ? 'a plus' : ''} ${rec.projectedChange.toFixed(1)} percent upside potential.
-    ${rec.changePercent >= 0 ? 'The stock is performing well.' : 'The stock is down today but shows potential.'}
-    I've analyzed ${rec.newsCount} recent news articles and the sentiment is positive.
-    Based on technical indicators and market trends, ${rec.symbol} is a strong recommendation for your portfolio.
-    The ${rec.sector} sector shows strong momentum.
-    Consider adding this to your investments.
-  `;
+  const text = `JARVIS Analysis for ${rec.symbol}. ${rec.name}. Current price is ${stockData.price.toFixed(2)} dollars. Today's change is ${rec.changePercent.toFixed(2)} percent. My rating is ${Math.round(rec.rating)} out of 5 stars. I project ${rec.projectedChange >= 0 ? 'a plus' : ''} ${rec.projectedChange.toFixed(1)} percent upside potential. ${rec.changePercent >= 0 ? 'The stock is performing well.' : 'The stock is down today but shows potential.'} I've analyzed ${rec.newsCount} recent news articles and the sentiment is positive. Based on technical indicators and market trends, ${rec.symbol} is a strong recommendation for your portfolio. The ${rec.sector} sector shows strong momentum. Consider adding this to your investments.`;
   
-  // Cancel any ongoing speech
   window.speechSynthesis.cancel();
   
   const utterance = new SpeechSynthesisUtterance(text);
@@ -781,17 +756,10 @@ function speakAnalysis(rec, stockData) {
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
   
-  // Try to use a male voice (JARVIS-like)
   const voices = window.speechSynthesis.getVoices();
-  const maleVoice = voices.find(voice => 
-    voice.name.includes('David') || 
-    voice.name.includes('Daniel') || 
-    voice.name.includes('Male')
-  );
+  const maleVoice = voices.find(voice => voice.name.includes('David') || voice.name.includes('Daniel') || voice.name.includes('Male'));
   
-  if (maleVoice) {
-    utterance.voice = maleVoice;
-  }
+  if (maleVoice) utterance.voice = maleVoice;
   
   window.speechSynthesis.speak(utterance);
 }
@@ -827,7 +795,6 @@ async function quickAddStock(symbol) {
   savePortfolio();
   updatePortfolioDisplay();
   
-  // Switch to portfolio tab
   const tabs = document.querySelectorAll('.tab-btn');
   tabs.forEach(t => t.classList.remove('active'));
   const currentTab = document.querySelector('.tab-btn[data-tab="current"]');
@@ -865,8 +832,6 @@ function updateMarketInsights() {
 // Auto-refresh Recommendations Every Hour
 function autoRefreshRecommendations() {
   const now = new Date();
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  
   if (lastRefreshTime && now.getTime() - lastRefreshTime.getTime() >= 3600000) {
     console.log('Auto-refreshing recommendations...');
     fetchRecommendations();
