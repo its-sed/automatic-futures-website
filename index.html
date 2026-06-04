@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Futures Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Futures Dashboard</h1>
+      <p>Live prices, support, and resistance</p>
+    </div>
+    <div class="status">
+      <span id="connDot" class="dot offline"></span>
+      <span id="connText">Disconnected</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls">
+      <input id="symbolInput" placeholder="Add symbol like CLN26" />
+      <button id="addBtn">Add</button>
+      <button id="refreshBtn">Refresh</button>
+    </section>
+
+    <section class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Contract</th>
+            <th>Symbol</th>
+            <th>Current Price</th>
+            <th>Support 1</th>
+            <th>Support 2</th>
+            <th>Resistance 1</th>
+            <th>Resistance 2</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
