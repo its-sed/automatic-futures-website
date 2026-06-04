@@ -8,266 +8,265 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="jarvis-grid"></div>
-  
-  <div class="container">
-    <header>
-      <div class="arc-reactor-container">
-        <div class="arc-reactor">
-          <div class="reactor-core"></div>
-          <div class="reactor-ring ring-1"></div>
-          <div class="reactor-ring ring-2"></div>
-          <div class="reactor-ring ring-3"></div>
-          <div class="reactor-pulse"></div>
+  <div class="jarvis-grid">
+    <div class="jarvis-header">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff;">🤖</div>
+        <div>
+          <h1 class="jarvis-title">JARVIS Trading Platform</h1>
+          <p class="jarvis-subtitle">AI-Powered Trading & Analysis System</p>
         </div>
       </div>
-      <h1 class="jarvis-title">JARVIS</h1>
-      <p class="jarvis-subtitle">ADVANCED TRADING INTELLIGENCE SYSTEM</p>
-      
-      <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="futures">
-          <span class="tab-icon">🛢️</span>Futures
-        </button>
-        <button class="tab-btn" data-tab="portfolio">
-          <span class="tab-icon">📊</span>Stock Portfolio
-        </button>
-        <button class="tab-btn" data-tab="news">
-          <span class="tab-icon">📰</span>News Review
-        </button>
-        <button class="tab-btn" data-tab="analytics">
-          <span class="tab-icon">🔍</span>Analytics
-        </button>
-        <button class="tab-btn" data-tab="jarvis-help">
-          <span class="tab-icon">🤖</span>JARVIS AI Help
-        </button>
-      </nav>
-    </header>
-    
-    <!-- FUTURES TAB -->
-    <div id="futures" class="tab-content active">
-      <div class="jarvis-analysis">
-        <div class="jarvis-message">
-          <div class="jarvis-avatar">🛢️</div>
-          <div class="jarvis-text">
-            <h3 id="jarvisRecommendation">JARVIS is analyzing futures markets...</h3>
-            <p id="refreshTime">Last updated: --:--:--</p>
-          </div>
-        </div>
+      <div style="text-align: right;">
+        <div style="color: #0088ff; font-size: 0.9rem;">System Time</div>
+        <div id="currentTime" style="color: #00d9ff; font-size: 1.2rem; font-weight: bold;">--:--:--</div>
       </div>
-      
-      <div class="add-stock-container" style="max-width: 500px;">
-        <h2>Add Futures Contract</h2>
-        <div class="form-group">
-          <label>Symbol (e.g., CL for Crude Oil)</label>
-          <input type="text" id="futuresSymbol" placeholder="CL">
-        </div>
-        <button class="jarvis-btn" id="addFuturesBtn">Add Futures</button>
-      </div>
-      
-      <div id="futuresList" class="recommendations-grid"></div>
     </div>
     
-    <!-- STOCK PORTFOLIO TAB -->
-    <div id="portfolio" class="tab-content">
-      <div class="portfolio-summary">
-        <div class="summary-card">
-          <h3>TOTAL PORTFOLIO VALUE</h3>
-          <div class="summary-number" id="portfolioTotal">$0.00</div>
-        </div>
-        <div class="summary-card">
-          <h3>DAY CHANGE</h3>
-          <div class="summary-number" id="portfolioDayChange">0.00%</div>
-        </div>
-        <div class="summary-card">
-          <h3>TOTAL HOLDINGS</h3>
-          <div class="summary-number" id="portfolioHoldings">0</div>
-        </div>
+    <div class="jarvis-sidebar">
+      <div class="jarvis-menu">
+        <button class="tab-btn active" data-tab="futures">📊 Futures Lens</button>
+        <button class="tab-btn" data-tab="portfolio">💼 Stock Portfolio</button>
+        <button class="tab-btn" data-tab="news">📰 News Review</button>
+        <button class="tab-btn" data-tab="analytics">📈 Analytics</button>
+        <button class="tab-btn" data-tab="jarvisAI">🤖 JARVIS AI Help</button>
       </div>
-      
-      <div class="add-stock-container">
-        <h2>Add Stock Holding</h2>
-        <div class="search-section">
-          <input type="text" id="stockSearchInput" placeholder="Enter stock symbol (e.g., AAPL)">
-          <button class="jarvis-btn" id="searchStockBtn">Search</button>
+    </div>
+    
+    <div class="jarvis-main">
+      <!-- Futures Tab -->
+      <div id="futures" class="tab-content active">
+        <div class="section-header">
+          <h2>📊 Futures Lens</h2>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="futuresSymbol" placeholder="Symbol (e.g., CL)" style="padding: 10px; background: rgba(0, 10, 20, 0.9); border: 2px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 5px;">
+            <button id="addFuturesBtn" class="action-btn">Add Futures</button>
+            <button id="refreshFuturesBtn" class="action-btn">Refresh</button>
+          </div>
         </div>
-        <div id="searchResults" class="search-results"></div>
         
-        <div id="addHoldingForm" style="display: none; margin-top: 20px;">
-          <div class="stock-info">
-            <h3 id="selectedSymbol">--</h3>
-            <p id="selectedName">--</p>
-            <p class="current-price">Current: <span id="selectedPrice">$--</span></p>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Contracts Monitored</div>
+            <div class="metric-value" id="futuresCount">1</div>
           </div>
-          <div class="form-group">
-            <label>Shares</label>
-            <input type="number" id="sharesInput" placeholder="100">
+          <div class="metric-card">
+            <div class="metric-label">Last Update</div>
+            <div class="metric-value" id="refreshTime">--</div>
           </div>
-          <div class="form-group">
-            <label>Buy Price ($)</label>
-            <input type="number" id="buyPriceInput" step="0.01" placeholder="150.00">
+          <div class="metric-card">
+            <div class="metric-label">Market Status</div>
+            <div class="metric-value" style="color: #00ff9d;">● Open</div>
           </div>
-          <button class="jarvis-btn primary" id="addHoldingBtn">Add to Portfolio</button>
+        </div>
+        
+        <div id="futuresList" style="margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;"></div>
+        
+        <div class="insight-card" style="margin-top: 30px;">
+          <h3>🤖 JARVIS Futures Analysis</h3>
+          <p id="jarvisRecommendation" style="color: #00d9ff; line-height: 1.6;">Monitoring Crude Oil (CL) futures. Current price data updating every 30 seconds.</p>
         </div>
       </div>
       
-      <div class="table-container">
-        <h2>My Holdings</h2>
-        <table class="stock-table">
-          <thead>
-            <tr>
-              <th>Symbol</th>
-              <th>Shares</th>
-              <th>Buy Price</th>
-              <th>Current Price</th>
-              <th>Value</th>
-              <th>Day Change</th>
-              <th>P/L</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="portfolioRows">
-          </tbody>
-        </table>
-      </div>
-    </div>
-    
-    <!-- NEWS REVIEW TAB -->
-    <div id="news" class="tab-content">
-      <div class="jarvis-analysis">
-        <div class="jarvis-message">
-          <div class="jarvis-avatar">📰</div>
-          <div class="jarvis-text">
-            <h3>Breaking News & Market Intelligence</h3>
-            <p>Latest news on war, finance, earnings, and market-moving events</p>
+      <!-- Stock Portfolio Tab -->
+      <div id="portfolio" class="tab-content">
+        <div class="section-header">
+          <h2>💼 Stock Portfolio</h2>
+          <button class="action-btn" onclick="addStockToPortfolio()">+ Add Stock</button>
+        </div>
+        
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total Value</div>
+            <div class="metric-value" id="portfolioTotal">$0.00</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Day Change</div>
+            <div class="metric-value" id="portfolioDayChange">0.00%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Holdings</div>
+            <div class="metric-value" id="portfolioHoldings">0</div>
           </div>
         </div>
+        
+        <div style="margin-top: 30px;">
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="text" id="stockSearchInput" placeholder="Search stock symbol (e.g., AAPL)" style="flex: 1; padding: 12px; background: rgba(0, 10, 20, 0.9); border: 2px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 5px;">
+            <button id="searchStockBtn" class="action-btn">Search</button>
+          </div>
+          
+          <div id="searchResults" style="margin-bottom: 20px;"></div>
+          
+          <div id="addHoldingForm" style="display: none; background: rgba(0, 20, 40, 0.8); padding: 20px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.3); margin-bottom: 20px;">
+            <h3 style="color: #00d9ff; margin-bottom: 15px;">Add to Portfolio</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+              <div>
+                <label style="color: #0088ff; display: block; margin-bottom: 5px;">Symbol</label>
+                <div id="selectedSymbol" style="color: #00d9ff; font-weight: bold; padding: 8px; background: rgba(0, 10, 20, 0.8); border-radius: 5px;">--</div>
+              </div>
+              <div>
+                <label style="color: #0088ff; display: block; margin-bottom: 5px;">Name</label>
+                <div id="selectedName" style="color: #00d9ff; padding: 8px; background: rgba(0, 10, 20, 0.8); border-radius: 5px;">--</div>
+              </div>
+              <div>
+                <label style="color: #0088ff; display: block; margin-bottom: 5px;">Current Price</label>
+                <div id="selectedPrice" style="color: #00d9ff; padding: 8px; background: rgba(0, 10, 20, 0.8); border-radius: 5px;">--</div>
+              </div>
+              <div>
+                <label style="color: #0088ff; display: block; margin-bottom: 5px;">Buy Price</label>
+                <input type="number" id="buyPriceInput" step="0.01" style="width: 100%; padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 5px;">
+              </div>
+              <div style="grid-column: span 2;">
+                <label style="color: #0088ff; display: block; margin-bottom: 5px;">Shares</label>
+                <input type="number" id="sharesInput" step="1" style="width: 100%; padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 5px;">
+              </div>
+            </div>
+            <button id="addHoldingBtn" class="action-btn" style="width: 100%;">Add to Portfolio</button>
+          </div>
+          
+          <table style="width: 100%; border-collapse: collapse; background: rgba(0, 20, 40, 0.8); border-radius: 10px; overflow: hidden;">
+            <thead style="background: rgba(0, 217, 255, 0.2);">
+              <tr>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Symbol</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Shares</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Buy Price</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Current</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Value</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Day Change</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">P/L</th>
+                <th style="padding: 15px; text-align: left; color: #00d9ff;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="portfolioRows"></tbody>
+          </table>
+        </div>
       </div>
       
-      <div class="market-insights">
-        <h2>Latest News</h2>
-        <div id="newsContainer" class="insights-grid">
-          <p style="color: #0088ff; text-align: center;">Loading news...</p>
+      <!-- News Review Tab -->
+      <div id="news" class="tab-content">
+        <div class="section-header">
+          <h2>📰 News Review</h2>
+          <button id="refreshNewsBtn" class="action-btn">Refresh News</button>
         </div>
-        <button class="jarvis-btn" id="refreshNewsBtn" style="margin-top: 20px; width: 100%;">🔄 Refresh News</button>
-      </div>
-    </div>
-    
-    <!-- ANALYTICS TAB -->
-    <div id="analytics" class="tab-content">
-      <div class="add-stock-container">
-        <h2>Stock Analytics</h2>
-        <div class="search-section">
-          <input type="text" id="analyticsSearch" placeholder="Enter stock symbol (e.g., AAPL)">
-          <button class="jarvis-btn" id="analyticsSearchBtn">Analyze</button>
+        
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Last Update</div>
+            <div class="metric-value" id="newsTime">--</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Sources</div>
+            <div class="metric-value" style="color: #00d9ff;">3</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Categories</div>
+            <div class="metric-value" style="color: #00ffff;">Finance + War + Earnings</div>
+          </div>
         </div>
+        
+        <div id="newsContainer" style="margin-top: 30px; display: grid; gap: 20px;"></div>
       </div>
       
-      <div id="analyticsResults" style="display: none;">
-        <div class="jarvis-analysis">
-          <div class="jarvis-message">
-            <div class="jarvis-avatar">📈</div>
-            <div class="jarvis-text">
-              <h3 id="analyticsSymbol">--</h3>
-              <p id="analyticsName">--</p>
+      <!-- Analytics Tab -->
+      <div id="analytics" class="tab-content">
+        <div class="section-header">
+          <h2>📈 Stock Analytics</h2>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+          <input type="text" id="analyticsSearch" placeholder="Enter stock symbol (e.g., AAPL)" style="flex: 1; padding: 12px; background: rgba(0, 10, 20, 0.9); border: 2px solid rgba(0, 217, 255, 0.5); color: #00d9ff; border-radius: 5px;">
+          <button id="analyticsSearchBtn" class="action-btn">Analyze</button>
+        </div>
+        
+        <div id="analyticsResults" style="display: none;">
+          <div class="section-header">
+            <h3 id="analyticsSymbol" style="color: #00d9ff;">--</h3>
+            <div id="analyticsName" style="color: #0088ff;">--</div>
+          </div>
+          
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Price</div>
+              <div class="metric-value" id="analyticsPrice">$--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Change</div>
+              <div class="metric-value" id="analyticsChange">--%</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Open</div>
+              <div class="metric-value" id="analyticsOpen">$--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">High/Low</div>
+              <div class="metric-value" id="analyticsHL">$-- / $--</div>
+            </div>
+          </div>
+          
+          <div class="metrics-grid" style="margin-top: 20px;">
+            <div class="metric-card">
+              <div class="metric-label">Market Cap</div>
+              <div class="metric-value" id="analyticsMarketCap">$--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">P/E Ratio</div>
+              <div class="metric-value" id="analyticsPE">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">EPS</div>
+              <div class="metric-value" id="analyticsEPS">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Dividend Yield</div>
+              <div class="metric-value" id="analyticsDividend">--%</div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 30px; height: 400px; background: rgba(0, 20, 40, 0.8); border-radius: 10px; padding: 20px;">
+            <canvas id="analyticsChart"></canvas>
+          </div>
+          
+          <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <h3 style="color: #00d9ff; margin-bottom: 15px;">Recent News</h3>
+              <div id="analyticsNews" style="display: grid; gap: 15px;"></div>
+            </div>
+            <div>
+              <h3 style="color: #00d9ff; margin-bottom: 15px;">Upcoming Events</h3>
+              <div id="analyticsEvents" style="display: grid; gap: 15px;"></div>
             </div>
           </div>
         </div>
+      </div>
+      
+      <!-- JARVIS AI Help Tab -->
+      <div id="jarvisAI" class="tab-content">
+        <div class="section-header">
+          <h2>🤖 JARVIS AI Assistant</h2>
+          <p style="color: #0088ff;">AI-powered trading assistant powered by Google Gemini</p>
+        </div>
         
-        <div class="portfolio-summary">
-          <div class="summary-card">
-            <h3>CURRENT PRICE</h3>
-            <div class="summary-number" id="analyticsPrice">$--</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Model</div>
+            <div class="metric-value" style="color: #00d9ff;">Google Gemini</div>
           </div>
-          <div class="summary-card">
-            <h3>DAY CHANGE</h3>
-            <div class="summary-number" id="analyticsChange">--%</div>
+          <div class="metric-card">
+            <div class="metric-label">Status</div>
+            <div class="metric-value" style="color: #00ff9d;">● Active</div>
           </div>
-          <div class="summary-card">
-            <h3>OPEN</h3>
-            <div class="summary-number" id="analyticsOpen">$--</div>
-          </div>
-          <div class="summary-card">
-            <h3>HIGH / LOW</h3>
-            <div class="summary-number" id="analyticsHL">$-- / $--</div>
+          <div class="metric-card">
+            <div class="metric-label">API</div>
+            <div class="metric-value" style="color: #00ffff;">Cloudflare Worker</div>
           </div>
         </div>
         
-        <div class="chart-container">
-          <h2>Price Chart (60 Days)</h2>
-          <canvas id="analyticsChart" style="height: 350px;"></canvas>
-        </div>
-        
-        <div class="table-container">
-          <h2>Financial Metrics</h2>
-          <table class="stock-table">
-            <tbody>
-              <tr>
-                <td><strong>Market Cap</strong></td>
-                <td id="analyticsMarketCap">--</td>
-              </tr>
-              <tr>
-                <td><strong>P/E Ratio</strong></td>
-                <td id="analyticsPE">--</td>
-              </tr>
-              <tr>
-                <td><strong>EPS</strong></td>
-                <td id="analyticsEPS">--</td>
-              </tr>
-              <tr>
-                <td><strong>Dividend Yield</strong></td>
-                <td id="analyticsDividend">--</td>
-              </tr>
-              <tr>
-                <td><strong>52 Week High</strong></td>
-                <td id="analytics52High">--</td>
-              </tr>
-              <tr>
-                <td><strong>52 Week Low</strong></td>
-                <td id="analytics52Low">--</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="market-insights">
-          <h2>Recent News</h2>
-          <div id="analyticsNews" class="insights-grid"></div>
-        </div>
-        
-        <div class="market-insights">
-          <h2>Upcoming Events</h2>
-          <div id="analyticsEvents" class="insights-grid"></div>
-        </div>
+        <div id="jarvisChatContainer" style="margin-top: 30px;"></div>
       </div>
     </div>
-    
-<!-- JARVIS AI Help Tab -->
-<div id="jarvisAI" class="tab-content">
-  <div class="section-header">
-    <h2>🤖 JARVIS AI Assistant</h2>
-    <p style="color: #0088ff;">AI-powered trading assistant for market analysis and insights</p>
   </div>
   
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <div class="metric-label">Model</div>
-      <div class="metric-value" style="color: #00d9ff;">Google Gemini</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Status</div>
-      <div class="metric-value" style="color: #00ff9d;">● Active</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Response Time</div>
-      <div class="metric-value" style="color: #ff9d00;">~2-3s</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Daily Uses</div>
-      <div class="metric-value" style="color: #00ffff;" id="jarvisUses">0</div>
-    </div>
-  </div>
-  
-  <div id="jarvisChatContainer" style="margin-top: 30px;">
-    <!-- Chat will be loaded here by JavaScript -->
-  </div>
-</div>
+  <script src="app.js"></script>
+</body>
+</html>
