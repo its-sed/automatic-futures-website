@@ -1,9 +1,10 @@
-// JARVIS AI Trading Platform - Enhanced Version
+// JARVIS AI Trading Platform - Ultimate Version
 // State Management
 let portfolio = [];
 let recommendations = [];
 let portfolioChart = null;
 let lastRefreshTime = null;
+let chatHistory = [];
 
 // Finnhub API Key
 const API_KEY = 'd8gqff9r01qhjpmp75p0d8gqff9r01qhjpmp75pg';
@@ -30,6 +31,11 @@ function initTabs() {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       const targetTab = document.getElementById(tab.dataset.tab);
       if (targetTab) targetTab.classList.add('active');
+      
+      // Initialize chat if JARVIS AI Help tab
+      if (tab.dataset.tab === 'jarvis-help') {
+        initJARVISChat();
+      }
     });
   });
 }
@@ -146,44 +152,21 @@ async function fetchStockNews(symbol) {
   }
 }
 
-// Fetch Stock Profile (Fixed - handles errors gracefully)
-async function fetchStockProfile(symbol) {
-  try {
-    const response = await fetch(`https://finnhub.io/api/v1/company-profile2?symbol=${symbol.toUpperCase()}&token=${API_KEY}`);
-    
-    // Check if response is OK
-    if (!response.ok) {
-      console.warn(`Profile API returned status ${response.status} for ${symbol}`);
-      return { description: 'No description available', website: '#', category: '', sector: '' };
-    }
-    
-    // Try to parse JSON
-    const data = await response.json();
-    
-    // Validate the response
-    if (!data || typeof data !== 'object') {
-      console.warn(`Invalid profile data for ${symbol}`);
-      return { description: 'No description available', website: '#', category: '', sector: '' };
-    }
-    
-    return data;
-  } catch (error) {
-    console.warn(`Error fetching profile for ${symbol}:`, error.message);
-    // Return default data instead of failing
-    return { description: 'No description available', website: '#', category: '', sector: '' };
-  }
-}
-
-// Fetch Historical Data for Chart
+// Fetch Historical Data for Chart - Try Multiple Sources
 async function fetchStockHistory(symbol) {
   try {
+    // Try Finnhub first with different time range
     const today = new Date();
     const twoMonthsAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
     const fromDate = Math.floor(twoMonthsAgo.getTime() / 1000);
     const toDate = Math.floor(today.getTime() / 1000);
     
     const response = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol.toUpperCase()}&resolution=D&from=${fromDate}&to=${toDate}&token=${API_KEY}`);
-    if (!response.ok) throw new Error('Failed to fetch history');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
     const data = await response.json();
     
     if (data.s === 'ok' && data.c && data.t && data.c.length > 0) {
@@ -192,20 +175,57 @@ async function fetchStockHistory(symbol) {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       });
       const prices = data.c;
-      return { labels, prices };
+      return { labels, prices, success: true };
     }
     
-    // If no data, return mock data for demonstration
-    console.warn(`No historical data for ${symbol}, using mock data`);
-    const mockLabels = ['Jan 1', 'Jan 5', 'Jan 10', 'Jan 15', 'Jan 20', 'Jan 25', 'Jan 30', 'Feb 5', 'Feb 10', 'Feb 15', 'Feb 20', 'Feb 25', 'Mar 1', 'Mar 5', 'Mar 10', 'Mar 15', 'Mar 20', 'Mar 25', 'Apr 1', 'Apr 5', 'Apr 10', 'Apr 15', 'Apr 20', 'Apr 25', 'May 1', 'May 5', 'May 10', 'May 15', 'May 20', 'May 25', 'Jun 1'];
-    const mockPrices = [100, 102, 105, 103, 108, 110, 112, 115, 113, 118, 120, 122, 125, 123, 128, 130, 132, 135, 138, 140, 142, 145, 143, 148, 150, 152, 155, 158, 160, 162, 165];
-    return { labels: mockLabels, prices: mockPrices };
+    // If no data from Finnhub, try Yahoo Finance workaround
+    console.warn(`No data from Finnhub for ${symbol}, trying alternative...`);
+    return await fetchFromYahooAlternative(symbol);
+    
   } catch (error) {
-    console.error('Error fetching history:', error);
-    // Return mock data on error
-    const mockLabels = ['Jan 1', 'Jan 5', 'Jan 10', 'Jan 15', 'Jan 20', 'Jan 25', 'Jan 30', 'Feb 5', 'Feb 10', 'Feb 15', 'Feb 20', 'Feb 25', 'Mar 1', 'Mar 5', 'Mar 10', 'Mar 15', 'Mar 20', 'Mar 25', 'Apr 1', 'Apr 5', 'Apr 10', 'Apr 15', 'Apr 20', 'Apr 25', 'May 1', 'May 5', 'May 10', 'May 15', 'May 20', 'May 25', 'Jun 1'];
-    const mockPrices = [100, 102, 105, 103, 108, 110, 112, 115, 113, 118, 120, 122, 125, 123, 128, 130, 132, 135, 138, 140, 142, 145, 143, 148, 150, 152, 155, 158, 160, 162, 165];
-    return { labels: mockLabels, prices: mockPrices };
+    console.error('Error fetching history from all sources:', error);
+    // Last resort: fetch from Yahoo Finance public API
+    return await fetchFromYahooAlternative(symbol);
+  }
+}
+
+// Alternative: Fetch from Yahoo Finance
+async function fetchFromYahooAlternative(symbol) {
+  try {
+    // Yahoo Finance API
+    const today = new Date();
+    const twoMonthsAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+    
+    const fromDate = Math.floor(twoMonthsAgo.getTime() / 1000);
+    const toDate = Math.floor(today.getTime() / 1000);
+    
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?range=2mo&interval=1d`);
+    
+    if (!response.ok) {
+      throw new Error(`Yahoo API failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.chart && data.chart.result && data.chart.result[0]) {
+      const result = data.chart.result[0];
+      const timestamps = result.timestamp || [];
+      const quotes = result.indicators.quote[0].close || [];
+      
+      if (timestamps.length > 0 && quotes.length > 0) {
+        const labels = timestamps.map(ts => {
+          const date = new Date(ts * 1000);
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+        return { labels, prices: quotes, success: true };
+      }
+    }
+    
+    throw new Error('Invalid Yahoo response');
+    
+  } catch (error) {
+    console.error('Yahoo fetch failed:', error);
+    return { labels: [], prices: [], success: false };
   }
 }
 
@@ -519,7 +539,7 @@ function displayRecommendations() {
     grid.appendChild(card);
   });
   
-  // Add event listeners after rendering
+  // Add event listeners
   document.querySelectorAll('.recommendation-card .add-stock-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const symbol = e.target.getAttribute('data-symbol');
@@ -559,11 +579,9 @@ async function showStockAnalysis(symbol) {
   
   console.log('Creating modal...');
   
-  // Remove existing modal if any
   const existingModal = document.getElementById('analysisModal');
   if (existingModal) existingModal.remove();
   
-  // Create modal
   const modal = document.createElement('div');
   modal.id = 'analysisModal';
   modal.style.cssText = `
@@ -626,6 +644,7 @@ async function showStockAnalysis(symbol) {
         <div style="background: rgba(0, 10, 20, 0.9); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 30px;">
           <h3 style="color: #00d9ff; margin-bottom: 15px;">Price History (60 Days)</h3>
           <canvas id="stockChart_${symbol}" style="max-height: 400px; width: 100%;"></canvas>
+          ${history.success !== false ? '' : '<p style="color: #ff0060; margin-top: 15px;">⚠️ Historical data temporarily unavailable for this stock</p>'}
         </div>
         
         <div style="background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 136, 255, 0.1)); border: 2px solid rgba(0, 217, 255, 0.5); border-radius: 15px; padding: 25px; margin-bottom: 30px;">
@@ -730,7 +749,10 @@ async function showStockAnalysis(symbol) {
           responsive: true,
           maintainAspectRatio: true,
           plugins: {
-            legend: { labels: { color: '#00d9ff' } }
+            legend: { 
+              labels: { color: '#00d9ff' },
+              position: 'top'
+            }
           },
           scales: {
             x: {
@@ -859,4 +881,239 @@ function autoRefreshRecommendations() {
     console.log('Auto-refreshing recommendations...');
     fetchRecommendations();
   }
+}
+
+// ============================================
+// JARVIS AI HELP CHAT - Using Perplexity AI
+// ============================================
+
+// Initialize JARVIS Chat
+function initJARVISChat() {
+  const chatContainer = document.getElementById('jarvisChatContainer');
+  if (!chatContainer) return;
+  
+  // Clear existing content
+  chatContainer.innerHTML = `
+    <div style="height: calc(100vh - 250px); display: flex; flex-direction: column;">
+      <!-- Chat Messages -->
+      <div id="jarvisChatMessages" style="flex: 1; overflow-y: auto; padding: 20px; background: rgba(0, 10, 20, 0.8); border-radius: 10px; margin-bottom: 20px;">
+        <div style="display: flex; margin-bottom: 20px;">
+          <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
+          <div style="flex: 1;">
+            <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
+            <div style="color: #00d9ff; line-height: 1.6;">
+              Hello! I'm JARVIS, your AI trading assistant powered by Perplexity AI. I can help you with:
+              <ul style="margin: 10px 0 10px 20px;">
+                <li>📈 Stock analysis and recommendations</li>
+                <li>💰 Portfolio management advice</li>
+                <li>📰 Market news and trends</li>
+                <li>🔍 Research on specific companies</li>
+                <li>💡 Investment strategies</li>
+                <li>📊 Technical analysis explanations</li>
+              </ul>
+              What would you like to know about trading or the markets today?
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Chat Input -->
+      <div style="display: flex; gap: 10px;">
+        <input 
+          type="text" 
+          id="jarvisChatInput" 
+          placeholder="Ask JARVIS about stocks, markets, or trading..." 
+          style="
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 1rem;
+            background: rgba(0, 10, 20, 0.9);
+            border: 2px solid rgba(0, 217, 255, 0.5);
+            color: #00d9ff;
+            border-radius: 8px;
+            outline: none;
+          "
+          onkeypress="if(event.key === 'Enter') sendJARVISMessage()"
+        />
+        <button 
+          id="sendJARVISBtn"
+          onclick="sendJARVISMessage()"
+          style="
+            padding: 15px 30px;
+            background: rgba(0, 217, 255, 0.3);
+            border: 2px solid #00d9ff;
+            color: #00d9ff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+          "
+          onmouseover="this.style.background='rgba(0, 217, 255, 0.5)'"
+          onmouseout="this.style.background='rgba(0, 217, 255, 0.3)'"
+        >
+          SEND
+        </button>
+      </div>
+    </div>
+  `;
+  
+  chatHistory = [];
+}
+
+// Send JARVIS Message
+async function sendJARVISMessage() {
+  const input = document.getElementById('jarvisChatInput');
+  const messages = document.getElementById('jarvisChatMessages');
+  const sendBtn = document.getElementById('sendJARVISBtn');
+  
+  const userMessage = input.value.trim();
+  if (!userMessage) return;
+  
+  // Disable input while processing
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = '...';
+  
+  // Add user message to chat
+  messages.innerHTML += `
+    <div style="display: flex; margin-bottom: 20px; justify-content: flex-end;">
+      <div style="flex: 1; max-width: 70%; margin-left: 15px;">
+        <div style="color: #0088ff; font-weight: bold; margin-bottom: 5px; text-align: right;">You</div>
+        <div style="background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 15px; color: #00d9ff; line-height: 1.6;">
+          ${escapeHtml(userMessage)}
+        </div>
+      </div>
+      <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00ffff, #00d9ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 0 20px #00ffff; margin-left: 15px; flex-shrink: 0;">👤</div>
+    </div>
+  `;
+  
+  chatHistory.push({ role: 'user', content: userMessage });
+  
+  // Scroll to bottom
+  messages.scrollTop = messages.scrollHeight;
+  input.value = '';
+  
+  // Add loading indicator
+  const loadingId = 'loading-' + Date.now();
+  messages.innerHTML += `
+    <div id="${loadingId}" style="display: flex; margin-bottom: 20px;">
+      <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
+      <div style="flex: 1;">
+        <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
+        <div style="color: #0088ff; line-height: 1.6;">
+          <span style="animation: blink 1s infinite;">JARVIS is thinking...</span>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  messages.scrollTop = messages.scrollHeight;
+  
+  try {
+    // Call Perplexity AI API
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getPAPIKey()
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-sonar-large-128k-online',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are JARVIS, a sophisticated AI trading assistant. You help users with stock analysis, market research, portfolio advice, and trading strategies. Be concise, accurate, and helpful. Use markdown formatting for clarity. Always provide actionable insights.'
+          },
+          ...chatHistory.slice(-10) // Keep last 10 messages for context
+        ]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const aiResponse = data.choices[0].message.content;
+    
+    chatHistory.push({ role: 'assistant', content: aiResponse });
+    
+    // Remove loading indicator
+    document.getElementById(loadingId).remove();
+    
+    // Add AI response
+    messages.innerHTML += `
+      <div style="display: flex; margin-bottom: 20px;">
+        <div style="width: 50px; height: 50px; background: radial-gradient(circle, #00d9ff, #0088ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #00d9ff; margin-right: 15px; flex-shrink: 0;">🤖</div>
+        <div style="flex: 1;">
+          <div style="color: #00d9ff; font-weight: bold; margin-bottom: 5px;">JARVIS AI Assistant</div>
+          <div style="color: #00d9ff; line-height: 1.6; white-space: pre-wrap;">
+            ${formatJARVISResponse(aiResponse)}
+          </div>
+        </div>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('JARVIS Chat Error:', error);
+    
+    // Remove loading indicator
+    document.getElementById(loadingId).remove();
+    
+    // Add error message
+    messages.innerHTML += `
+      <div style="display: flex; margin-bottom: 20px;">
+        <div style="width: 50px; height: 50px; background: radial-gradient(circle, #ff0060, #ff4080); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 0 20px #ff0060; margin-right: 15px; flex-shrink: 0;">⚠️</div>
+        <div style="flex: 1;">
+          <div style="color: #ff0060; font-weight: bold; margin-bottom: 5px;">JARVIS Error</div>
+          <div style="color: #ff4080; line-height: 1.6;">
+            I'm experiencing technical difficulties connecting to my AI brain. Please try again in a moment. Error: ${error.message}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Re-enable input
+  input.disabled = false;
+  sendBtn.disabled = false;
+  sendBtn.textContent = 'SEND';
+  input.focus();
+  
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// Get Perplexity API Key (you'll need to add this)
+function getPAPIKey() {
+  // Replace with your actual Perplexity API key
+  // Get one at: https://www.perplexity.ai/settings/api
+  return 'pplx-XXXXXXX-YOUR-KEY-HERE'; // UPDATE THIS!
+}
+
+// Format JARVIS Response (convert markdown to HTML)
+function formatJARVISResponse(text) {
+  // Convert markdown to HTML
+  let html = escapeHtml(text);
+  
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Italic
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Code blocks
+  html = html.replace(/```([\s\S]*?)```/g, '<code style="background: rgba(0, 217, 255, 0.1); padding: 2px 5px; border-radius: 3px;">$1</code>');
+  
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  
+  return html;
+}
+
+// Escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
