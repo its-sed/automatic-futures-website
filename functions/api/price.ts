@@ -10,38 +10,38 @@ export async function onRequestGet({ request, env }) {
       });
     }
     
-    console.log(`Fetching CommodityPriceAPI for: ${symbol}`);
+    console.log(`Fetching OilPriceAPI for: ${symbol}`);
     
-    // Map your symbols to CommodityPriceAPI commodity names
+    // Map your symbols to OilPriceAPI commodity codes
     const commodityMap: { [key: string]: string } = {
-      "CLN26": "WTI",        // Crude Oil (WTI)
-      "BRN26": "BRENT",      // Brent Oil
-      "NGQ26": "NATURALGAS", // Natural Gas
-      "GCQ26": "GOLD",       // Gold
-      "ESM26": "SILVER"      // Silver
+      "CLN26": "WTI_USD",           // Crude Oil WTI
+      "BRN26": "BRENT_CRUDE_USD",   // Brent Crude
+      "NGQ26": "NATURAL_GAS_USD",   // Natural Gas
+      "GCQ26": "GOLD_USD",          // Gold
+      "ESM26": "SILVER_USD"         // Silver
     };
     
-    const commodity = commodityMap[symbol];
+    const commodityCode = commodityMap[symbol];
     
-    if (!commodity) {
+    if (!commodityCode) {
       return new Response(JSON.stringify({ error: `unknown symbol: ${symbol}` }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
     }
     
-    console.log(`Commodity name: ${commodity}`);
+    console.log(`Commodity code: ${commodityCode}`);
     
-    // CommodityPriceAPI endpoint (API key in HEADER, not URL)
-    const apiKey = "755371df-32e9-4940-96d3-381cd9e94d36";
-    const apiUrl = `https://api.commoditypriceapi.com/v2/rates/latest?symbols=${commodity}`;
+    const apiKey = "52126229107b3404e36aa18edd3a7b4b13e61577b3b0367d0ce1ee8089e12409";
+    
+    // OilPriceAPI endpoint
+    const apiUrl = `https://api.oilpriceapi.com/v1/prices/latest?by_code=${commodityCode}`;
     
     console.log('API URL:', apiUrl);
     
     const response = await fetch(apiUrl, {
       headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json"
+        'Authorization': `Token ${apiKey}`
       }
     });
     
@@ -54,15 +54,16 @@ export async function onRequestGet({ request, env }) {
     }
     
     const data = await response.json();
-    console.log('CommodityPriceAPI response:', data);
+    console.log('OilPriceAPI response:', data);
     
     // Get the price from the response
-    const price = data.rates?.[commodity]?.price || data.rates?.[commodity]?.last_price || 0;
+    // API returns: { data: { WTI_USD: { price: 78.50, ... } } }
+    const price = data.data?.[commodityCode]?.price || 0;
     
     console.log('Extracted price:', price);
     
     if (!price || price === 0) {
-      console.warn('No price data for commodity:', commodity);
+      console.warn('No price data for commodity:', commodityCode);
       return new Response(JSON.stringify({ price: 50 }), {
         headers: {
           "Content-Type": "application/json",
