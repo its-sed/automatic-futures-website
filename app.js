@@ -1,3 +1,34 @@
+// Initialize TradingView Candlestick Chart for Crude Oil
+function initChart() {
+  new TradingView.widget({
+    "width": "100%",
+    "height": 500,
+    "symbol": "TVC:USOIL",
+    "interval": "1",
+    "timezone": "Etc/UTC",
+    "theme": "dark",
+    "style": "1",
+    "locale": "en",
+    "enable_publishing": false,
+    "backgroundColor": "rgba(0, 10, 20, 1)",
+    "gridColor": "rgba(0, 217, 255, 0.1)",
+    "hide_top_toolbar": false,
+    "hide_legend": false,
+    "save_image": false,
+    "container_id": "chartContainer"
+  });
+}
+// Initialize chart when page loads
+document.addEventListener('DOMContentLoaded', initChart);
+
+// Update system time
+function updateSystemTime() {
+  document.getElementById('systemTime').textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateSystemTime, 1000);
+updateSystemTime();
+
+// Your existing code continues below...
 const contracts = [
   { name: "Crude Oil", symbol: "CLN26" },
   { name: "Brent Oil", symbol: "BRN26" },
