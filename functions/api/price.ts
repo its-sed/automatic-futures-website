@@ -10,15 +10,15 @@ export async function onRequestGet({ request, env }) {
       });
     }
     
-    console.log(`Fetching API Ninjas price for: ${symbol}`);
+    console.log(`Fetching CommodityPriceAPI for: ${symbol}`);
     
-    // Map your symbols to API Ninjas commodity names
+    // Map your symbols to CommodityPriceAPI commodity names
     const commodityMap: { [key: string]: string } = {
-      "CLN26": "crude_oil",
-      "BRN26": "brent_crude_oil", 
-      "NGQ26": "natural_gas",
-      "GCQ26": "gold",
-      "ESM26": "silver"
+      "CLN26": "WTIOIL",      // Crude Oil (WTI)
+      "BRN26": "BRENT",       // Brent Oil
+      "NGQ26": "NATGAS",      // Natural Gas
+      "GCQ26": "GOLD",        // Gold
+      "ESM26": "SILVER"       // Silver (fallback for S&P 500)
     };
     
     const commodity = commodityMap[symbol];
@@ -32,17 +32,13 @@ export async function onRequestGet({ request, env }) {
     
     console.log(`Commodity name: ${commodity}`);
     
-    // CORRECTED API URL: api.api-ninjas.com/v1/commodityprice?name=
-    const apiUrl = `https://api.api-ninjas.com/v1/commodityprice?name=${commodity}`;
+    // CommodityPriceAPI endpoint
+    const apiKey = "755371df-32e9-4940-96d3-381cd9e94d36";
+    const apiUrl = `https://api.commoditypriceapi.com/v2/rates/latest?symbols=${commodity}&x-api-key=${apiKey}`;
     
     console.log('API URL:', apiUrl);
     
-    const response = await fetch(apiUrl, {
-      headers: {
-        "X-Api-Key": "AGZ2PrJO8iBeOQ7OP1RnuQJ5wOp5ez8qutAsPnM6"
-      }
-    });
-    
+    const response = await fetch(apiUrl);
     console.log('Response status:', response.status);
     
     if (!response.ok) {
@@ -52,10 +48,13 @@ export async function onRequestGet({ request, env }) {
     }
     
     const data = await response.json();
-    console.log('API Ninjas response:', data);
+    console.log('CommodityPriceAPI response:', data);
     
     // Get the price from the response
-    const price = data.price || 0;
+    // API returns: { rates: { GOLD: { price: 2034.50, ... } } }
+    const price = data.rates?.[commodity]?.price || data.rates?.[commodity]?.last_price || 0;
+    
+    console.log('Extracted price:', price);
     
     if (!price || price === 0) {
       console.warn('No price data for commodity:', commodity);
