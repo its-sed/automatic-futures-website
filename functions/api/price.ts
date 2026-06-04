@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env }) {
       "BRN26": "brent_crude_oil", 
       "NGQ26": "natural_gas",
       "GCQ26": "gold",
-      "ESM26": "silver"  // No S&P futures on API Ninjas free tier
+      "ESM26": "silver"
     };
     
     const commodity = commodityMap[symbol];
@@ -32,12 +32,14 @@ export async function onRequestGet({ request, env }) {
     
     console.log(`Commodity name: ${commodity}`);
     
-    // API Ninjas endpoint
-    const apiUrl = `https://api.ninjas.io/commodityprice?commodity=${commodity}`;
+    // CORRECTED API URL: api.api-ninjas.com/v1/commodityprice?name=
+    const apiUrl = `https://api.api-ninjas.com/v1/commodityprice?name=${commodity}`;
+    
+    console.log('API URL:', apiUrl);
     
     const response = await fetch(apiUrl, {
       headers: {
-        "X-API-Key": "AGZ2PrJO8iBeOQ7OP1RnuQJ5wOp5ez8qutAsPnM6"
+        "X-Api-Key": "AGZ2PrJO8iBeOQ7OP1RnuQJ5wOp5ez8qutAsPnM6"
       }
     });
     
@@ -53,8 +55,7 @@ export async function onRequestGet({ request, env }) {
     console.log('API Ninjas response:', data);
     
     // Get the price from the response
-    // API Ninjas returns: {status: "success", commodity: "gold", price: 2034.50}
-    const price = data.price || data.last_price || 0;
+    const price = data.price || 0;
     
     if (!price || price === 0) {
       console.warn('No price data for commodity:', commodity);
