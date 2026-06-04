@@ -1,15 +1,15 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #00d9ff; min-height: 100vh; overflow-x: hidden; }
-.jarvis-grid { display: grid; grid-template-rows: auto 1fr; height: 100vh; padding: 20px; gap: 20px; }
-.jarvis-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 40, 0.8); padding: 20px 30px; border-radius: 15px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); }
+.jarvis-grid { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr; height: 100vh; padding: 20px; gap: 20px; }
+.jarvis-header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 40, 0.8); padding: 20px 30px; border-radius: 15px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); }
 .jarvis-title { font-size: 2.5rem; font-weight: bold; color: #00d9ff; text-shadow: 0 0 20px rgba(0, 217, 255, 0.5); }
 .jarvis-subtitle { color: #0088ff; font-size: 1rem; margin-top: 5px; }
-.jarvis-sidebar { width: 250px; background: rgba(0, 20, 40, 0.8); border-radius: 15px; padding: 20px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); }
+.jarvis-sidebar { background: rgba(0, 20, 40, 0.8); border-radius: 15px; padding: 20px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); }
 .jarvis-menu { display: flex; flex-direction: column; gap: 10px; }
 .tab-btn { padding: 15px 20px; background: rgba(0, 20, 40, 0.6); border: 2px solid rgba(0, 217, 255, 0.3); color: #00d9ff; border-radius: 10px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: all 0.3s ease; text-align: left; }
 .tab-btn:hover { background: rgba(0, 217, 255, 0.2); border-color: #00d9ff; box-shadow: 0 0 15px rgba(0, 217, 255, 0.3); }
 .tab-btn.active { background: rgba(0, 217, 255, 0.3); border-color: #00d9ff; box-shadow: 0 0 20px rgba(0, 217, 255, 0.5); }
-.jarvis-main { flex: 1; background: rgba(0, 20, 40, 0.8); border-radius: 15px; padding: 30px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); overflow-y: auto; }
+.jarvis-main { background: rgba(0, 20, 40, 0.8); border-radius: 15px; padding: 30px; border: 2px solid rgba(0, 217, 255, 0.3); box-shadow: 0 0 30px rgba(0, 217, 255, 0.2); overflow-y: auto; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid rgba(0, 217, 255, 0.3); }
@@ -33,6 +33,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .support-card h4, .resistance-card h4 { color: #0088ff; margin-bottom: 8px; font-size: 0.9rem; }
 .support-card p { color: #00ff9d; font-size: 1.2rem; font-weight: bold; }
 .resistance-card p { color: #ff0060; font-size: 1.2rem; font-weight: bold; }
+.futures-chart-container { height: 200px; margin-top: 15px; background: rgba(0, 10, 20, 0.6); border-radius: 8px; padding: 10px; }
 .action-btn { padding: 10px 20px; background: rgba(0, 217, 255, 0.3); border: 2px solid #00d9ff; color: #00d9ff; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; }
 .action-btn:hover { background: rgba(0, 217, 255, 0.5); box-shadow: 0 0 15px rgba(0, 217, 255, 0.5); }
 .insight-card { background: rgba(0, 20, 40, 0.8); padding: 20px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.3); }
