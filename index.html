@@ -241,27 +241,33 @@
       </div>
     </div>
     
-    <!-- JARVIS AI HELP TAB -->
-    <div id="jarvis-help" class="tab-content">
-      <div class="jarvis-analysis">
-        <div class="jarvis-message">
-          <div class="jarvis-avatar">🤖</div>
-          <div class="jarvis-text">
-            <h3>JARVIS AI Assistant</h3>
-            <p>Your intelligent trading companion powered by Perplexity AI</p>
-          </div>
-        </div>
-      </div>
-      
-      <div id="jarvisChatContainer" style="margin: 20px 0;"></div>
-    </div>
-    
-    <footer>
-      <p>JARVIS Trading Platform &copy; 2025</p>
-      <div class="system-time">System Time: <span id="currentTime">--:--:--</span></div>
-    </footer>
+<!-- JARVIS AI Help Tab -->
+<div id="jarvisAI" class="tab-content">
+  <div class="section-header">
+    <h2>🤖 JARVIS AI Assistant</h2>
+    <p style="color: #0088ff;">AI-powered trading assistant for market analysis and insights</p>
   </div>
   
-  <script src="app.js"></script>
-</body>
-</html>
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Model</div>
+      <div class="metric-value" style="color: #00d9ff;">Google Gemini</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Status</div>
+      <div class="metric-value" style="color: #00ff9d;">● Active</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Response Time</div>
+      <div class="metric-value" style="color: #ff9d00;">~2-3s</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Daily Uses</div>
+      <div class="metric-value" style="color: #00ffff;" id="jarvisUses">0</div>
+    </div>
+  </div>
+  
+  <div id="jarvisChatContainer" style="margin-top: 30px;">
+    <!-- Chat will be loaded here by JavaScript -->
+  </div>
+</div>
